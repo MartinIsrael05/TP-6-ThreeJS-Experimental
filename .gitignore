@@ -19,3 +19,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .vercel
+
+# agentes de IA (configuración personal)
+.claude/settings.local.json
