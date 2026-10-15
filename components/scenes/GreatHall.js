@@ -2,12 +2,13 @@
 
 import { useRef } from "react";
 import * as THREE from "three";
-import { houses } from "@/data/houses";
+import { getHouse, houses } from "@/data/houses";
 import { useThreeScene } from "@/hooks/useThreeScene";
 import { createCandles } from "@/components/scenes/great-hall/candles";
 import { createDust } from "@/components/scenes/great-hall/dust";
 import { createEnchantedCeiling } from "@/components/scenes/great-hall/enchantedCeiling";
 import { buildHall, HALL } from "@/components/scenes/great-hall/hall";
+import { createSortingHat } from "@/components/scenes/great-hall/sortingHat";
 import { createComposer } from "@/lib/three/postprocessing";
 
 const FOG_COLOR = "#1b130d";
@@ -18,15 +19,19 @@ const PARALLAX = new THREE.Vector2(0.45, 0.22);
 
 // Luces reales: pocas y cálidas. El resto de la luz lo dan las velas con
 // emissive y bloom.
+const DEFAULT_BANNER_COLORS = houses.map((house) => new THREE.Color(house.color));
+// Cuánto se tiñen las llamas con el color de la casa (0 a 1).
+const FLAME_TINT = 0.22;
+
 const LIGHTS = [
   { position: [-2.6, 5.4, -3], intensity: 26 },
-  { position: [2.6, 5.4, -13], intensity: 30 },
-  { position: [-2.6, 5.4, -22], intensity: 30 },
+  { position: [2.6, 6.3, -13], intensity: 24 },
+  { position: [-2.6, 6.3, -22], intensity: 24 },
   { position: [0, 4.2, -30], intensity: 70 },
 ];
 
 function setupGreatHall(ctx) {
-  const { scene, camera, renderer, listen } = ctx;
+  const { scene, camera, renderer, listen, props } = ctx;
 
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
@@ -39,11 +44,17 @@ function setupGreatHall(ctx) {
   camera.position.copy(CAMERA_POSITION);
   camera.lookAt(CAMERA_TARGET);
 
-  const { group: hall } = buildHall(
+  const { group: hall, bannerMaterials, wood } = buildHall(
     ctx,
     houses.map((house) => house.color),
   );
   scene.add(hall);
+
+  const sortingHat = createSortingHat({
+    position: new THREE.Vector3(0, 0, HALL.tablesTo - 2.5),
+    stoolMaterial: wood,
+  });
+  scene.add(sortingHat.group);
 
   const ceiling = createEnchantedCeiling(HALL);
   scene.add(ceiling.mesh);
@@ -70,18 +81,54 @@ function setupGreatHall(ctx) {
     return light;
   });
 
-  // Paralaje: el puntero (de -1 a 1) corre apenas la cámara, que sigue
-  // mirando al mismo punto. Se suaviza para que no salte.
+  // Puntero en coordenadas normalizadas (de -1 a 1). Sirve para el paralaje
+  // (la cámara se corre apenas y sigue mirando al mismo punto) y para el
+  // raycasting del Sombrero.
   const pointer = new THREE.Vector2();
   const eased = new THREE.Vector2();
-  listen(renderer.domElement, "pointermove", (event) => {
+  const raycaster = new THREE.Raycaster();
+  let hovered = false;
+
+  function readPointer(event) {
     const rect = renderer.domElement.getBoundingClientRect();
     pointer.set(
       ((event.clientX - rect.left) / rect.width) * 2 - 1,
       -((event.clientY - rect.top) / rect.height) * 2 + 1,
     );
+  }
+
+  // El Sombrero solo responde mientras el ítem no está conseguido.
+  function pointsAtHat() {
+    if (props.current.discovered) return false;
+    raycaster.setFromCamera(pointer, camera);
+    return raycaster.intersectObject(sortingHat.hitArea).length > 0;
+  }
+
+  listen(renderer.domElement, "pointermove", (event) => {
+    readPointer(event);
+    hovered = pointsAtHat();
+    renderer.domElement.style.cursor = hovered ? "pointer" : "default";
   });
-  listen(renderer.domElement, "pointerleave", () => pointer.set(0, 0));
+  listen(renderer.domElement, "pointerleave", () => {
+    pointer.set(0, 0);
+    hovered = false;
+  });
+  // Abre el mismo diálogo que el botón "Ponerme el Sombrero" de Experience.
+  listen(renderer.domElement, "click", (event) => {
+    readPointer(event);
+    if (pointsAtHat()) props.current.onDiscover();
+  });
+
+  // Colores de la casa: los estandartes pasan todos a su color y las llamas
+  // se tiñen apenas. Sin casa, cada estandarte tiene el de una casa.
+  let appliedHouse;
+  const bannerTargets = DEFAULT_BANNER_COLORS.map((color) => color.clone());
+  function applyHouse(houseId) {
+    appliedHouse = houseId;
+    const house = houseId ? getHouse(houseId) : null;
+    bannerTargets.forEach((target, index) => target.copy(house ? new THREE.Color(house.color) : DEFAULT_BANNER_COLORS[index]));
+    candles.setTint(house?.accent, FLAME_TINT);
+  }
 
   // Bloom suave para llamas y estrellas, corrección cálida y viñeta. Si el
   // equipo no llega a 40 FPS, useThreeScene lo apaga solo.
@@ -106,9 +153,14 @@ function setupGreatHall(ctx) {
         camera.lookAt(CAMERA_TARGET);
       }
 
+      if (props.current.house !== appliedHouse) applyHouse(props.current.house ?? null);
+      const blend = delta > 0 ? 1 - Math.exp(-delta * 2.5) : 1;
+      bannerMaterials.forEach((material, index) => material.color.lerp(bannerTargets[index], blend));
+
       ceiling.update(elapsed);
       candles.update(elapsed, delta);
       dust.update(elapsed, delta);
+      sortingHat.update({ elapsed, delta, highlight: hovered ? 1 : 0, idle: !props.current.discovered });
 
       // Titileo de las luces: dos senos desfasados por luz, sin azar por
       // frame para que no parpadee.

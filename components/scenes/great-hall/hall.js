@@ -48,8 +48,8 @@ function bannerGeometry(width, height) {
 }
 
 // Arma paredes, columnas, arcos, piso, tarima, mesas, bancos y estandartes.
-// Devuelve el grupo y los materiales de los estandartes, que después toman el
-// color de la casa.
+// Devuelve el grupo, los materiales de los estandartes (que después toman el
+// color de la casa) y la madera, para reusarla en otras piezas.
 export function buildHall(ctx, bannerColors) {
   const group = new THREE.Group();
   const { width, height, length, centerZ } = HALL;
@@ -166,5 +166,5 @@ export function buildHall(ctx, bannerColors) {
     });
   });
 
-  return { group, bannerMaterials };
+  return { group, bannerMaterials, wood: tableWood };
 }
