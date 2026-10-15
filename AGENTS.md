@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 # TP6 Hogwarts: manual del proyecto para agentes de IA
 
-Este archivo lo leen todos los agentes (Claude Code, Codex, Copilot, Cursor, opencode). `CLAUDE.md` solo contiene `@AGENTS.md`. Máximo 200 líneas: lo extenso va en `docs/` con un link. Cualquier cambio a este archivo lo revisan las dos personas del equipo.
+Este archivo lo leen todos los agentes (Claude Code, Codex, Copilot, Cursor, opencode). `CLAUDE.md` solo contiene `@AGENTS.md`. Máximo 200 líneas: lo extenso va en `docs/` con un link.
 
 ## Proyecto
 
@@ -79,13 +79,12 @@ docs/                     propuesta, plan de IA y documentación del TP
 
 - `.env.local` nunca se sube ni se pega en chats, issues o capturas. En el repo solo va `.env.example` sin valores.
 - Todo documento de usuario usa el UID como id y tiene `userId == request.auth.uid`, como en `progress/{uid}`.
-- Cualquier cambio a `firestore.rules` se revisa con la skill `firebase-security-rules-auditor` antes del PR, y se publica en la consola de Firebase recién cuando el PR está aprobado.
+- Cualquier cambio a `firestore.rules` se revisa con la skill `firebase-security-rules-auditor` antes del PR, y se publica en la consola de Firebase recién cuando el PR se mergea a `main`.
 - No correr `firebase deploy`, `firebase-tools` ni ningún comando que cree o modifique recursos en la nube sin pedir permiso explícito.
 
-## Git y revisión
+## Git
 
 - `main` siempre funciona. Cada tarea va en una rama `feature/<nombre-corto>` y entra por Pull Request.
-- La otra persona del equipo revisa y aprueba cada PR, incluido el código escrito por IA.
 - Antes de abrir un PR: `npm run lint` y `npm run build` sin errores, y probar el flujo en el navegador.
 - Mensajes de commit en español, en imperativo: "Agrega escena del Gran Comedor".
 - El historial de commits es un entregable: commits frecuentes y descriptivos.
@@ -93,7 +92,7 @@ docs/                     propuesta, plan de IA y documentación del TP
 ## Reglas para los agentes
 
 - Explicá qué vas a cambiar antes de editar varios archivos y esperá confirmación en cambios grandes.
-- No instales paquetes npm ni skills sin aprobación de las dos personas. Si hace falta uno, proponelo y explicá por qué.
+- No instales paquetes npm ni skills sin pedir permiso. Si hace falta uno, proponelo y explicá por qué.
 - No apruebes ni corras comandos destructivos (`rm -rf`, `git push --force`, `git reset --hard`) sin pedirlo.
 - Si no sabés algo de la consigna o del diseño, preguntá en lugar de inventar.
 - Si la IA se equivoca dos veces en lo mismo, se agrega una regla acá.
