@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { places } from "@/data/places";
+import { persistenceLabels, places } from "@/data/places";
 import { useProgress } from "@/hooks/useProgress";
 import AuthPanel from "@/components/AuthPanel";
 import ThreeArtifact from "@/components/ThreeArtifact";
@@ -25,11 +25,11 @@ export default function Experience({ initialPlaceId }) {
     collected,
     collect,
     firebaseConfigured,
+    persistence,
     ready,
     reset,
     signInWithGoogle,
     submitEmail,
-    syncState,
   } = useProgress();
   const place = places[activeIndex];
   const isCollected = collected.has(place.item.id);
@@ -109,7 +109,15 @@ export default function Experience({ initialPlaceId }) {
           S/88 <i>●</i>
         </button>
         <div className="status">
-          <span>{syncState === "cloud" ? "NUBE" : "LOCAL"}</span>
+          <span
+            className={`persistence is-${persistence}`}
+            role="status"
+            aria-live="polite"
+            title={persistenceLabels[persistence].hint}
+          >
+            {persistenceLabels[persistence].label}
+            <span className="sr-only">: {persistenceLabels[persistence].hint}</span>
+          </span>
           <span>SEÑAL {Math.round((collectedCount / places.length) * 100)}%</span>
           {firebaseConfigured && (
             <button className="auth-trigger" onClick={() => setAuthOpen(true)}>

@@ -74,7 +74,7 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 .brand { border: 0; background: transparent; font-size: 16px; font-weight: 900; cursor: pointer; }
 .brand i { color: #ff3d81; font-size: 10px; font-style: normal; text-shadow: 0 0 12px #ff3d81; }
 .status { display: flex; gap: 24px; color: var(--muted); }
-.status span:first-child::before { content: "●"; color: #b7ff3c; margin-right: 7px; }
+.status > span:first-child::before { content: "●"; color: #b7ff3c; margin-right: 7px; }
 .auth-trigger { max-width: 190px; overflow: hidden; border: 0; border-bottom: 1px solid #4d554e; padding: 0 0 3px; background: transparent; color: var(--ink); font-size: 9px; letter-spacing: .12em; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
 .auth-trigger:hover { border-color: #b7ff3c; color: #b7ff3c; }
 
@@ -205,3 +205,8 @@ button:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.status .persistence.is-cloud::before { color: #b7ff3c; }
+.status .persistence.is-local::before { color: #ffdf6b; }
+.status .persistence.is-offline::before { color: #ff3d81; }

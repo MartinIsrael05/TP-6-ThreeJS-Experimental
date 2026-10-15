@@ -1,6 +1,13 @@
 "use client"; // Hook con estado, efectos, localStorage y Firebase: solo existe en el navegador.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -42,6 +49,19 @@ function getProvider(user) {
   return user.providerData[0]?.providerId || "password";
 }
 
+// OFFLINE se detecta con navigator.onLine y los eventos online/offline del navegador.
+function subscribeConnection(onChange) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
+const getOnline = () => navigator.onLine;
+const getServerOnline = () => true;
+
 async function saveUserProfile(user, db) {
   const userRef = doc(db, "users", user.uid);
   const snapshot = await getDoc(userRef);
@@ -69,6 +89,11 @@ export function useProgress() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const online = useSyncExternalStore(
+    subscribeConnection,
+    getOnline,
+    getServerOnline,
+  );
 
   useEffect(() => {
     const localItems = readLocal();
@@ -227,6 +252,11 @@ export function useProgress() {
   }, []);
 
   const collected = useMemo(() => new Set(items), [items]);
+  const persistence = !online
+    ? "offline"
+    : syncState === "cloud"
+      ? "cloud"
+      : "local";
 
   return {
     authError,
@@ -237,6 +267,7 @@ export function useProgress() {
     collect,
     collected,
     firebaseConfigured: hasFirebaseConfig,
+    persistence,
     ready,
     reset,
     signInWithGoogle,

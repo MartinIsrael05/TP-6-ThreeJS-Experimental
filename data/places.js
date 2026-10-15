@@ -16,6 +16,14 @@ export const ending = {
   copy: "Las tres páginas volvieron a su lugar y la tinta dejó de moverse. Fin del prototipo: más adelante, este final va a depender de tu casa.",
 };
 
+// Estado de persistencia contado dentro del mundo. hint es la versión llana
+// para lectores de pantalla y el tooltip.
+export const persistenceLabels = {
+  cloud: { label: "LECHUZA ENVIADA", hint: "Tu progreso se guarda en la nube" },
+  local: { label: "PERGAMINO LOCAL", hint: "Tu progreso se guarda solo en este navegador" },
+  offline: { label: "SIN LECHUZAS", hint: "Sin conexión: tu progreso se guarda en este navegador" },
+};
+
 export const places = [
   {
     id: "gran-comedor",
