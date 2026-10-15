@@ -4,7 +4,10 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { houses } from "@/data/houses";
 import { useThreeScene } from "@/hooks/useThreeScene";
-import { buildHall } from "@/components/scenes/great-hall/hall";
+import { createCandles } from "@/components/scenes/great-hall/candles";
+import { createDust } from "@/components/scenes/great-hall/dust";
+import { createEnchantedCeiling } from "@/components/scenes/great-hall/enchantedCeiling";
+import { buildHall, HALL } from "@/components/scenes/great-hall/hall";
 
 const FOG_COLOR = "#1b130d";
 const CAMERA_POSITION = new THREE.Vector3(0, 2.6, -9);
@@ -41,6 +44,22 @@ function setupGreatHall(ctx) {
   );
   scene.add(hall);
 
+  const ceiling = createEnchantedCeiling(HALL);
+  scene.add(ceiling.mesh);
+
+  const candles = createCandles({
+    count: 150,
+    bounds: new THREE.Box3(new THREE.Vector3(-5.8, 4.4, HALL.back + 5), new THREE.Vector3(5.8, 7.4, HALL.front - 2)),
+    avoid: { point: CAMERA_POSITION, radius: 3 },
+  });
+  candles.meshes.forEach((mesh) => scene.add(mesh));
+
+  const dust = createDust({
+    count: 380,
+    bounds: new THREE.Box3(new THREE.Vector3(-4.5, 0.6, -24), new THREE.Vector3(4.5, 6, -10)),
+  });
+  scene.add(dust.points);
+
   scene.add(new THREE.HemisphereLight("#46557f", "#2a1a10", 0.6));
   const lights = LIGHTS.map(({ position, intensity }) => {
     const light = new THREE.PointLight("#ffb36b", intensity, 0, 2);
@@ -74,6 +93,10 @@ function setupGreatHall(ctx) {
         );
         camera.lookAt(CAMERA_TARGET);
       }
+
+      ceiling.update(elapsed);
+      candles.update(elapsed, delta);
+      dust.update(elapsed, delta);
 
       // Titileo de las luces: dos senos desfasados por luz, sin azar por
       // frame para que no parpadee.
