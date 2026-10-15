@@ -1,6 +1,6 @@
 # Plan de trabajo con IA: TP6 Hogwarts
 
-Adaptación del "Plan de trabajo con IA" de Potrero UMAI (v1.0, 8/10/2026) a un TP de dos personas. Mantiene la misma idea: un único manual del proyecto (`AGENTS.md`) que leen todos los agentes, skills revisadas antes de entrar al repo y todo cambio por Pull Request con revisión humana.
+Adaptación del "Plan de trabajo con IA" de Potrero UMAI (v1.0, 8/10/2026) a un TP de dos personas. Mantiene la misma idea: un único manual del proyecto (`AGENTS.md`) que leen todos los agentes, skills revisadas antes de entrar al repo y todo cambio por Pull Request.
 
 ## 1. Resumen
 
@@ -15,7 +15,7 @@ Adaptación del "Plan de trabajo con IA" de Potrero UMAI (v1.0, 8/10/2026) a un 
 | --- | --- | --- | --- |
 | A · Three.js | a definir | Escenas 3D, hook común de escena, shader o partículas de hechizos, prólogo con scroll, carga de modelos | Escenas, shaders, optimización, depurar el render |
 | B · Next, Firebase y UI | a definir | Rutas, `loading`/`error`/`not-found`, metadata, `useProgress`, Firestore y reglas, Mapa del Merodeador, carta de login, textos y estilos | Componentes, reglas, textos narrativos, accesibilidad |
-| Ambos | | Revisar el PR del otro, README, créditos, presentación | Documentación, casos de prueba, capturas |
+| Ambos | | README, créditos, presentación | Documentación, casos de prueba, capturas |
 
 Quien hace el setup inicial del repo cumple el rol de "Especialista IA" del plan original: mantiene `AGENTS.md`, revisa skills nuevas y ayuda al otro con las herramientas.
 
@@ -49,9 +49,8 @@ No hace falta instalar todo: alcanza con un agente que funcione y lea `AGENTS.md
 4. Pedirle la tarea al agente con contexto concreto: qué archivo, qué resultado, cómo se prueba.
 5. Leer cada comando que el agente quiera correr antes de aprobarlo. No usar modos que aprueban todo solos.
 6. Probar en `npm run dev`, después `npm run lint` y `npm run build`.
-7. Commit y push de la rama, abrir el Pull Request en GitHub.
-8. La otra persona revisa y aprueba. Recién ahí se mergea a `main`.
-9. Si la IA se equivoca dos veces en lo mismo, se agrega una regla a `AGENTS.md` (en su propio PR).
+7. Commit y push de la rama, abrir el Pull Request en GitHub y mergearlo a `main`.
+8. Si la IA se equivoca dos veces en lo mismo, se agrega una regla a `AGENTS.md` (en su propio PR).
 
 ## 6. AGENTS.md: el manual del proyecto
 
@@ -73,9 +72,9 @@ Reglas del archivo: menos de 200 líneas, lo extenso va en `docs/` con un link, 
 
 - `.env.local` nunca se sube (ya está en `.gitignore`), ni se pega en chats, issues o capturas. Las variables `NEXT_PUBLIC_` terminan en el navegador igual, pero la costumbre importa.
 - Nunca usar una clave de cuenta de servicio de Firebase (`serviceAccount.json`) en este proyecto.
-- Revisar cada comando que propone el agente. Nada de `rm -rf`, `git push --force` ni `firebase deploy` sin decidirlo los dos.
-- Todo lo hecho por IA pasa por PR y revisión humana.
-- No instalar skills ni paquetes sin que los dos estén de acuerdo. Toda skill nueva se revisa como en la sección 10.
+- Revisar cada comando que propone el agente. Nada de `rm -rf`, `git push --force` ni `firebase deploy` sin pedirlo explícitamente.
+- Todo lo hecho por IA entra a `main` por Pull Request.
+- Toda skill nueva se revisa como en la sección 10.
 - Si una clave se filtra: avisar al otro, rotarla en la consola de Firebase y actualizar `.env.local` y Vercel.
 
 ## 8. Propiedad intelectual
@@ -93,7 +92,7 @@ Reglas del archivo: menos de 200 líneas, lo extenso va en `docs/` con un link, 
 - [ ] Copiar `.agents/skills` a `.claude/skills` para que Claude Code también las vea (una sola vez: `powershell -ExecutionPolicy Bypass -File scripts\setup-ia.ps1`, que también deja la plantilla de PR y las extensiones de VS Code).
 - [x] `AGENTS.md`, `docs/plan-ia.md`, `docs/propuesta.md`, `CREDITS.md`, plantilla de PR y extensiones recomendadas de VS Code.
 - [ ] Crear el repo propio en GitHub y subir el proyecto.
-- [ ] Invitar al compañero como colaborador y proteger `main` (Settings → Branches: requerir PR con una aprobación).
+- [ ] Invitar al compañero como colaborador y proteger `main` (Settings → Branches: requerir PR antes de mergear).
 - [ ] Cada uno: clonar, `npm install`, `npm run dev`, loguearse en su agente.
 - [ ] Cada uno: probar que el agente lee el manual preguntándole "¿Qué reglas tenés para los assets?".
 - [ ] Crear el proyecto de Firebase (Auth anónima, Google y email; Firestore) y compartir el `.env.local` por un canal privado, no por el repo.
@@ -117,7 +116,6 @@ Reglas del archivo: menos de 200 líneas, lo extenso va en `docs/` con un link, 
 
 ### Los dos
 
-- [ ] Revisar los PR del otro.
 - [ ] README final, mapa de navegación, créditos, deploy en Vercel y ensayo de la demo.
 
 ## 10. Revisión de skills
