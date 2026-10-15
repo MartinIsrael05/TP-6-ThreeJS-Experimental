@@ -49,7 +49,9 @@ La sensación de película sale más de la atmósfera que del detalle de los mod
 4. **Prólogo y pulido:** cámara por scroll, sonido, responsive.
 5. **Entrega:** README completo, deploy en Vercel, ensayo de la demo.
 
-## Modelo de datos propuesto
+## Modelo de datos
+
+Implementado en la Fase 2 (`hooks/useProgress.js`) y validado en `firestore.rules`.
 
 ```js
 // progress/{uid}
@@ -57,14 +59,33 @@ La sensación de película sale más de la atmósfera que del detalle de los mod
   userId: "uid-de-firebase-auth",
   authProvider: "google.com",
   house: "ravenclaw",
-  wand: "sauco-pluma-fenix",
-  spells: ["lumos", "alohomora"],
-  pages: ["escaleras", "pasillo"],
-  currentPlace: "quidditch",
+  wand: "nogal-fenix",
+  spells: ["lumos", "alohomora", "accio"],
+  items: ["sombrero", "varita", "pagina-1"],
+  currentPlace: "pasillo",
   ending: null,
   updatedAt: serverTimestamp()
 }
 ```
+
+| Campo | Tipo | Valores válidos |
+| --- | --- | --- |
+| `userId` | string | El uid autenticado; también es el id del documento |
+| `authProvider` | string | `anonymous`, `password` o `google.com` |
+| `house` | string o null | `gryffindor`, `hufflepuff`, `ravenclaw`, `slytherin` (`data/houses.js`) |
+| `wand` | string o null | `sauce-unicornio`, `cerezo-dragon`, `nogal-fenix`, `abedul-unicornio` (`data/wands.js`) |
+| `spells` | lista | Hasta 3, sin repetir: `lumos`, `alohomora`, `accio` (`data/spells.js`) |
+| `items` | lista | Hasta 6, sin repetir: `sombrero`, `varita`, `pagina-1`, `pagina-2`, `pagina-3`, `camara-abierta` (`data/places.js`) |
+| `currentPlace` | string o null | Uno de los 6 lugares de `data/places.js` |
+| `ending` | string o null | Igual a `house`, y solo cuando `items` incluye `camara-abierta` |
+| `updatedAt` | timestamp | Lo pone el servidor con `serverTimestamp()` |
+
+- El cliente escribe el documento completo, sin `merge`, en Firestore y en `localStorage` (clave `tp6-hogwarts-progress`).
+- `ending` no se elige: el hook lo deriva de la casa cuando se abre la Cámara.
+- Migración de la Fase 1: un documento con `clues` se lee como `items` y la primera escritura lo reemplaza; un `localStorage` con un array suelto se convierte al objeto nuevo.
+- Al iniciar sesión se une el progreso local con el remoto: `house`, `wand` y `currentPlace` priorizan lo remoto y las listas se suman.
+- Las reglas repiten las listas de ids: si cambia un id en `data/`, hay que cambiarlo también en `firestore.rules`.
+- `users/{uid}` no cambió en la Fase 2.
 
 ## Alcance
 
