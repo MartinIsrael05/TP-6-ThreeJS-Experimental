@@ -1,13 +1,129 @@
 rules_version = '2';
+
+// ===============================================================
+// Modelo de datos asumido
+// ===============================================================
+//
+// Colección: progress
+// Id del documento: uid de Firebase Authentication
+// Campos (todos obligatorios, no se permite ningún otro):
+//   - userId: string. Igual al uid autenticado y al id del documento.
+//   - authProvider: string. 'anonymous', 'password' o 'google.com'.
+//   - house: string o null. Una de las 4 casas.
+//   - wand: string o null. Una de las 4 varitas.
+//   - spells: lista de strings. Hasta 3 hechizos válidos, sin repetir.
+//   - items: lista de strings. Hasta 6 ítems válidos, sin repetir.
+//   - currentPlace: string o null. Uno de los 6 lugares.
+//   - ending: string o null. Igual a house, y solo si items incluye
+//     'camara-abierta'.
+//   - updatedAt: timestamp. Lo pone el servidor (serverTimestamp()).
+//
+// El cliente escribe siempre el documento completo (setDoc sin merge).
+// Un documento de la Fase 1 con el campo clues se puede leer, y la
+// primera escritura lo reemplaza por uno válido.
+//
+// Colección: users (sin cambios en la Fase 2)
+// Id del documento: uid de Firebase Authentication
+// Campos: userId, email, displayName, photoURL, isAnonymous,
+//   authProvider, createdAt, lastLoginAt. Contiene datos personales:
+//   solo lo lee su dueño.
+//
+// Las listas de ids están copiadas de data/houses.js, data/wands.js,
+// data/spells.js y data/places.js. Si cambian allá, cambian acá.
+//
+// Todo lo que no coincide con un match queda denegado.
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /progress/{userId} {
-      allow read, delete: if request.auth != null
-        && request.auth.uid == userId;
 
-      allow create, update: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.data.userId == request.auth.uid;
+    // -------------------------------------------------------------
+    // Funciones auxiliares
+    // -------------------------------------------------------------
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // null o uno de los valores permitidos.
+    function isNullOr(value, allowed) {
+      return value == null || (value is string && value in allowed);
+    }
+
+    // Lista acotada, con valores permitidos y sin repetidos.
+    function isIdList(value, allowed, maxSize) {
+      return value is list
+        && value.size() <= maxSize
+        && value.hasOnly(allowed)
+        && value.toSet().size() == value.size();
+    }
+
+    // -------------------------------------------------------------
+    // Valores válidos del juego
+    // -------------------------------------------------------------
+
+    function validHouses() {
+      return ['gryffindor', 'hufflepuff', 'ravenclaw', 'slytherin'];
+    }
+
+    function validWands() {
+      return ['sauce-unicornio', 'cerezo-dragon', 'nogal-fenix', 'abedul-unicornio'];
+    }
+
+    function validSpells() {
+      return ['lumos', 'alohomora', 'accio'];
+    }
+
+    function validItems() {
+      return ['sombrero', 'varita', 'pagina-1', 'pagina-2', 'pagina-3', 'camara-abierta'];
+    }
+
+    function validPlaces() {
+      return ['gran-comedor', 'ollivanders', 'escaleras', 'pasillo', 'quidditch', 'camara'];
+    }
+
+    function validProviders() {
+      return ['anonymous', 'password', 'google.com'];
+    }
+
+    function progressFields() {
+      return ['userId', 'authProvider', 'house', 'wand', 'spells', 'items',
+              'currentPlace', 'ending', 'updatedAt'];
+    }
+
+    // -------------------------------------------------------------
+    // Validador de progress (se usa en create y en update)
+    // -------------------------------------------------------------
+
+    function isValidProgress(userId) {
+      let data = request.resource.data;
+      return data.keys().hasOnly(progressFields())
+        && data.keys().hasAll(progressFields())
+        && data.userId == request.auth.uid
+        && data.userId == userId
+        && data.authProvider is string
+        && data.authProvider in validProviders()
+        && isNullOr(data.house, validHouses())
+        && isNullOr(data.wand, validWands())
+        && isNullOr(data.currentPlace, validPlaces())
+        && isIdList(data.spells, validSpells(), 3)
+        && isIdList(data.items, validItems(), 6)
+        && (data.ending == null
+            || (data.ending == data.house && 'camara-abierta' in data.items))
+        && data.updatedAt == request.time;
+    }
+
+    // -------------------------------------------------------------
+    // Colecciones
+    // -------------------------------------------------------------
+
+    match /progress/{userId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidProgress(userId);
     }
 
     match /users/{userId} {
