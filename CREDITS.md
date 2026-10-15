@@ -20,7 +20,8 @@ Cada recurso que se suma al repo se anota acá en el mismo Pull Request.
 
 | Recurso | Autor | Fuente | Licencia | Uso en el sitio |
 | --- | --- | --- | --- | --- |
-| | | | | |
+| Cinzel | Natanael Gama | fonts.google.com/specimen/Cinzel | SIL Open Font License 1.1 | Títulos, botones y marca, servida con next/font |
+| EB Garamond | Georg Duffner y Octavio Pardo | fonts.google.com/specimen/EB+Garamond | SIL Open Font License 1.1 | Texto narrativo e interfaz, servida con next/font |
 
 ## Audio
 

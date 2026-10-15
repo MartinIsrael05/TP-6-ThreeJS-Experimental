@@ -16,6 +16,13 @@ export const ending = {
   copy: "Las tres páginas volvieron a su lugar y la tinta dejó de moverse. Fin del prototipo: más adelante, este final va a depender de tu casa.",
 };
 
+// Cómo se nombra cada tipo de ítem en la tarjeta del lugar.
+export const itemTypeLabels = {
+  decision: "Una decisión",
+  pagina: "Una página arrancada",
+  final: "El cierre",
+};
+
 // Estado de persistencia contado dentro del mundo. hint es la versión llana
 // para lectores de pantalla y el tooltip.
 export const persistenceLabels = {

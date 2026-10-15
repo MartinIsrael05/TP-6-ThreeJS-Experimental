@@ -58,31 +58,32 @@ export default function AuthPanel({
   return (
     <section className="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title">
       <div className="auth-panel">
-        <button className="auth-close" onClick={onClose} aria-label="Cerrar acceso">×</button>
-        <p className="kicker">IDENTIFICACIÓN / FIREBASE AUTH</p>
-        <h2 id="auth-title">IDENTIFICAR OPERADOR</h2>
+        <button className="auth-close" onClick={onClose} aria-label="Cerrar la carta">×</button>
+        <p className="auth-seal">Colegio Hogwarts de Magia y Hechicería</p>
+        <h2 id="auth-title">Carta de admisión</h2>
+        <p className="auth-letter">Tenés una vacante en el castillo. Firmá con tu email o con Google y tu progreso te va a seguir a cualquier dispositivo.</p>
 
         {user && !user.isAnonymous ? (
           <div className="auth-current">
-            <small>SESIÓN ACTIVA</small>
+            <small>Ya firmaste tu carta</small>
             <strong>{user.displayName || user.email}</strong>
             <span>{user.email}</span>
-            <button onClick={handleGuest} disabled={authLoading}>CONTINUAR COMO INVITADO</button>
+            <button onClick={handleGuest} disabled={authLoading}>Seguir como visitante</button>
           </div>
         ) : (
           <>
             <div className="auth-tabs" aria-label="Modo de autenticación">
-              <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")}>INGRESAR</button>
-              <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>CREAR CUENTA</button>
+              <button className={mode === "signin" ? "active" : ""} onClick={() => setMode("signin")}>Ya tengo mi carta</button>
+              <button className={mode === "signup" ? "active" : ""} onClick={() => setMode("signup")}>Pedir mi carta</button>
             </div>
 
             <form onSubmit={handleSubmit} className="auth-form">
               <label>
-                <span>EMAIL</span>
+                <span>Email</span>
                 <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" required />
               </label>
               <label>
-                <span>CONTRASEÑA</span>
+                <span>Contraseña</span>
                 <input
                   type="password"
                   value={password}
@@ -93,13 +94,13 @@ export default function AuthPanel({
                 />
               </label>
               <button className="auth-primary" type="submit" disabled={authLoading}>
-                {authLoading ? "PROCESANDO…" : mode === "signup" ? "CREAR CUENTA" : "INGRESAR"}
+                {authLoading ? "Enviando la lechuza…" : mode === "signup" ? "Pedir mi carta" : "Entrar al castillo"}
               </button>
             </form>
 
-            <div className="auth-separator"><span>O</span></div>
-            <button className="auth-google" onClick={handleGoogle} disabled={authLoading}>CONTINUAR CON GOOGLE</button>
-            <p className="auth-note">El acceso como invitado utiliza una cuenta anónima de Firebase.</p>
+            <div className="auth-separator"><span>o</span></div>
+            <button className="auth-google" onClick={handleGoogle} disabled={authLoading}>Entrar con Google</button>
+            <p className="auth-note">Si no firmás, recorrés el castillo como visitante con una cuenta anónima y tu progreso se guarda igual.</p>
           </>
         )}
 

@@ -42,11 +42,13 @@ Sin `.env.local` el sitio funciona en modo LOCAL con localStorage.
 ## Estructura
 
 ```text
-app/                      rutas (App Router), layout, estilos globales
-  archivo/[chapter]/      ruta dinámica actual (se va a renombrar a castillo/[lugar])
+app/                      rutas (App Router), layout con metadata y fuentes, estilos globales
+  page.js                 portada: el prólogo
+  castillo/[lugar]/       ruta dinámica de cada lugar (generateStaticParams, metadata, notFound)
+  loading.js, error.js, not-found.js   estados de carga, error y 404
 components/               Experience (estado narrativo), ThreeArtifact (escena), AuthPanel
-data/chapters.js          contenido de cada capítulo: textos, colores, pistas
-hooks/useProgress.js      progreso local + Firebase (auth y Firestore)
+data/places.js            los 6 lugares con su ítem, prólogo, final y textos de persistencia
+hooks/useProgress.js      progreso local + Firebase (auth y Firestore) + estado nube/local/offline
 lib/firebase.js           inicialización de Firebase
 firestore.rules           reglas de acceso por usuario
 public/                   modelos .glb, texturas, audio (crear subcarpetas)

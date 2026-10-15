@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { persistenceLabels, places } from "@/data/places";
+import {
+  ending,
+  itemTypeLabels,
+  persistenceLabels,
+  places,
+  prologue,
+} from "@/data/places";
 import { useProgress } from "@/hooks/useProgress";
 import AuthPanel from "@/components/AuthPanel";
 import ThreeArtifact from "@/components/ThreeArtifact";
@@ -32,14 +38,16 @@ export default function Experience({ initialPlaceId }) {
     submitEmail,
   } = useProgress();
   const place = places[activeIndex];
+  const nextPlace = places[activeIndex + 1];
   const isCollected = collected.has(place.item.id);
   const collectedCount = places.filter((entry) =>
     collected.has(entry.item.id),
   ).length;
+  const status = persistenceLabels[persistence];
 
   useEffect(() => {
     if (!flash) return;
-    const timeout = window.setTimeout(() => setFlash(false), 650);
+    const timeout = window.setTimeout(() => setFlash(false), 900);
     return () => window.clearTimeout(timeout);
   }, [flash]);
 
@@ -79,92 +87,111 @@ export default function Experience({ initialPlaceId }) {
     }
   }
 
-  if (!ready) return <main className="loading">SINTONIZANDO…</main>;
+  if (!ready) {
+    return (
+      <main className="loading" role="status" aria-live="polite">
+        <span className="loading-flame" aria-hidden="true" />
+        <p>Encendiendo las antorchas</p>
+      </main>
+    );
+  }
 
   return (
-    <main className={`experience ${flash ? "is-flashing" : ""}`}>
-      <div className="noise" aria-hidden="true" />
-      <div className="scanlines" aria-hidden="true" />
+    <main
+      className={`experience ${flash ? "is-flashing" : ""}`}
+      style={{ "--luz": place.color, "--luz-suave": place.accent }}
+    >
+      <div className="candlelight" aria-hidden="true" />
 
       {!entered && (
-        <section className="intro">
-          <p className="kicker">ARCHIVO NO AUTORIZADO / EXP. 06</p>
-          <h1>
-            SEÑAL <span>88</span>
-          </h1>
-          <p className="intro-copy">
-            Una transmisión apareció donde no debía. Tres fragmentos siguen
-            activos. Entrar altera el archivo.
-          </p>
+        <section className="intro" aria-labelledby="intro-title">
+          <h1 id="intro-title">{prologue.title}</h1>
+          <p className="intro-copy">{prologue.copy}</p>
           <button className="enter-button" onClick={enterExperience}>
-            <span>INICIAR RECEPCIÓN</span>
-            <span aria-hidden="true">↗</span>
+            {prologue.cta}
           </button>
-          <p className="microcopy">Usá auriculares. O fingí que este mensaje los recomendaba.</p>
+          <p className="intro-note">{prologue.note}</p>
         </section>
       )}
 
       <header className="topbar">
         <button className="brand" onClick={returnToStart}>
-          S/88 <i>●</i>
+          Hogwarts
         </button>
         <div className="status">
           <span
             className={`persistence is-${persistence}`}
             role="status"
             aria-live="polite"
-            title={persistenceLabels[persistence].hint}
+            title={status.hint}
           >
-            {persistenceLabels[persistence].label}
-            <span className="sr-only">: {persistenceLabels[persistence].hint}</span>
+            {status.label}
+            <span className="sr-only">: {status.hint}</span>
           </span>
-          <span>SEÑAL {Math.round((collectedCount / places.length) * 100)}%</span>
+          <span className="progress-count">
+            {collectedCount} de {places.length}
+            <span className="sr-only"> lugares completados</span>
+          </span>
           {firebaseConfigured && (
             <button className="auth-trigger" onClick={() => setAuthOpen(true)}>
-              {authUser?.isAnonymous
-                ? "INVITADO"
-                : authUser?.displayName || authUser?.email || "ACCEDER"}
+              {authUser && !authUser.isAnonymous
+                ? authUser.displayName || authUser.email
+                : "Tu carta"}
             </button>
           )}
         </div>
       </header>
 
-      <section className="chapter-layout" style={{ "--signal": place.color }}>
-        <aside className="chapter-nav" aria-label="Fragmentos de la transmisión">
-          {places.map((entry, index) => {
-            const unlocked = canOpen(index);
-            return (
-              <button
-                key={entry.id}
-                className={index === activeIndex ? "active" : ""}
-                disabled={!unlocked}
-                onClick={() => openPlace(entry.id)}
-                aria-label={`${entry.label}${unlocked ? "" : " bloqueado"}`}
-              >
-                <b>{entry.number}</b>
-                <span>{entry.label}</span>
-                <i>{collected.has(entry.item.id) ? "◆" : unlocked ? "◇" : "×"}</i>
-              </button>
-            );
-          })}
+      <section className="place-layout">
+        <nav className="place-nav" aria-label="Lugares del castillo">
+          <ol>
+            {places.map((entry, index) => {
+              const unlocked = canOpen(index);
+              const done = collected.has(entry.item.id);
+              const state = done ? "done" : unlocked ? "open" : "locked";
+              const stateText = done
+                ? ", completado"
+                : unlocked
+                  ? ""
+                  : ", bloqueado";
+              return (
+                <li key={entry.id}>
+                  <button
+                    className={index === activeIndex ? "active" : ""}
+                    data-state={state}
+                    disabled={!unlocked}
+                    onClick={() => openPlace(entry.id)}
+                    aria-current={index === activeIndex ? "page" : undefined}
+                    aria-label={`${entry.number}. ${entry.label}${stateText}`}
+                  >
+                    <b>{entry.number}</b>
+                    <span>{entry.label}</span>
+                    <i aria-hidden="true" />
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
           <button className="reset-progress" onClick={handleReset}>
-            <b>↺</b>
-            <span>REINICIAR PROGRESO</span>
-            <i>×</i>
+            Empezar de nuevo
           </button>
-        </aside>
+        </nav>
 
-        <div className="narrative">
-          <p className="kicker">{place.eyebrow}</p>
-          <p className="chapter-number">FRAGMENTO {place.number}</p>
+        <article className="narrative">
+          <p className="place-eyebrow">{place.eyebrow}</p>
           <h2>{place.title}</h2>
-          <p className="chapter-copy">{place.copy}</p>
+          <p className="place-copy">{place.copy}</p>
 
-          <div className={`clue-card ${isCollected ? "found" : ""}`}>
-            <small>{isCollected ? "EVIDENCIA RECUPERADA" : "EVIDENCIA CIFRADA"}</small>
-            <strong>{isCollected ? place.item.label : "██████ ████"}</strong>
+          <div
+            className={`diary-page ${isCollected ? "found" : ""}`}
+            aria-live="polite"
+          >
+            <small>{itemTypeLabels[place.item.type]}</small>
+            <strong>
+              {isCollected ? place.item.label : "Todavía en blanco"}
+            </strong>
           </div>
-        </div>
+        </article>
 
         <div className="artifact-panel">
           <ThreeArtifact
@@ -174,32 +201,46 @@ export default function Experience({ initialPlaceId }) {
             onDiscover={handleCollect}
           />
           <div className="artifact-caption">
-            <span>[ OBJETO {place.number} ]</span>
-            <p>{isCollected ? "Frecuencia aislada." : place.instruction}</p>
+            <p>
+              {isCollected
+                ? nextPlace
+                  ? `Listo. El diario ya marca el camino a ${nextPlace.label}.`
+                  : "Listo. No queda ningún lugar por recorrer."
+                : place.instruction}
+            </p>
             {!isCollected && (
-              <button onClick={handleCollect}>INSPECCIONAR NÚCLEO</button>
+              <button onClick={handleCollect}>Resolver sin la escena 3D</button>
+            )}
+            {isCollected && nextPlace && (
+              <button onClick={() => openPlace(nextPlace.id)}>
+                Ir a {nextPlace.label}
+              </button>
             )}
           </div>
         </div>
       </section>
 
       <footer className="footer-bar">
-        <span>UMAI / PROGRAMACIÓN III</span>
-        <span>{new Date().toLocaleDateString("es-AR")}</span>
+        <span>Programación Multimedial III, UMAI</span>
       </footer>
 
       {completionOpen && (
-        <section className="completion" role="dialog" aria-modal="true">
+        <section
+          className="completion"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="completion-title"
+        >
           <button
             className="close"
             onClick={() => setCompletionOpen(false)}
-            aria-label="Cerrar desenlace"
+            aria-label="Cerrar el final"
           >
             ×
           </button>
-          <p className="kicker">TRANSMISIÓN RECONSTRUIDA</p>
-          <h2>NO ERA UN ECO.<br />ERA UNA INVITACIÓN.</h2>
-          <p>Fin del prototipo. La transmisión fue reconstruida por completo.</p>
+          <p className="completion-eyebrow">{ending.eyebrow}</p>
+          <h2 id="completion-title">{ending.title}</h2>
+          <p>{ending.copy}</p>
         </section>
       )}
 
