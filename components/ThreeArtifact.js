@@ -1,9 +1,9 @@
-"use client";
+"use client"; // Three.js necesita el DOM, WebGL y useEffect: solo corre en el navegador.
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 
-export default function ThreeArtifact({ chapter, onDiscover, discovered }) {
+export default function ThreeArtifact({ place, onDiscover, discovered }) {
   const mountRef = useRef(null);
   const onDiscoverRef = useRef(onDiscover);
 
@@ -31,8 +31,8 @@ export default function ThreeArtifact({ chapter, onDiscover, discovered }) {
 
     const geometry = new THREE.IcosahedronGeometry(1.18, 3);
     const material = new THREE.MeshStandardMaterial({
-      color: chapter.color,
-      emissive: chapter.color,
+      color: place.color,
+      emissive: place.color,
       emissiveIntensity: discovered ? 1.1 : 0.45,
       metalness: 0.72,
       roughness: 0.22,
@@ -44,7 +44,7 @@ export default function ThreeArtifact({ chapter, onDiscover, discovered }) {
 
     const haloGeometry = new THREE.TorusGeometry(1.72, 0.012, 12, 180);
     const haloMaterial = new THREE.MeshBasicMaterial({
-      color: chapter.accent,
+      color: place.accent,
       transparent: true,
       opacity: 0.75,
     });
@@ -64,7 +64,7 @@ export default function ThreeArtifact({ chapter, onDiscover, discovered }) {
     }
     pointsGeometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
     const pointsMaterial = new THREE.PointsMaterial({
-      color: chapter.accent,
+      color: place.accent,
       size: 0.018,
       transparent: true,
       opacity: 0.7,
@@ -73,7 +73,7 @@ export default function ThreeArtifact({ chapter, onDiscover, discovered }) {
     scene.add(particles);
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-    const keyLight = new THREE.PointLight(chapter.accent, 18, 12);
+    const keyLight = new THREE.PointLight(place.accent, 18, 12);
     keyLight.position.set(2.5, 2, 3);
     scene.add(keyLight);
 
@@ -147,14 +147,14 @@ export default function ThreeArtifact({ chapter, onDiscover, discovered }) {
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [chapter, discovered]);
+  }, [place, discovered]);
 
   return (
     <div
       ref={mountRef}
       className="three-stage"
       role="img"
-      aria-label={`Artefacto tridimensional de ${chapter.label}`}
+      aria-label={`Artefacto tridimensional de ${place.label}`}
     />
   );
 }

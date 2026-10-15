@@ -1,6 +1,13 @@
-"use client";
+"use client"; // Hook con estado, efectos, localStorage y Firebase: solo existe en el navegador.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
@@ -11,20 +18,21 @@ import {
   signOut,
 } from "firebase/auth";
 import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
-import { chapters } from "@/data/chapters";
+import { ITEM_IDS } from "@/data/places";
 import { getFirebaseServices, hasFirebaseConfig } from "@/lib/firebase";
 
-const STORAGE_KEY = "signal-88-progress";
-const VALID_CLUE_IDS = new Set(chapters.map((chapter) => chapter.clueId));
+const STORAGE_KEY = "tp6-hogwarts-progress";
+// En Firestore los ítems se siguen guardando en el campo `clues` de progress/{uid}:
+// la estructura del documento cambia recién en la Fase 2.
 
-function normalizeClues(value) {
+function normalizeItems(value) {
   if (!Array.isArray(value)) return [];
-  return [...new Set(value.filter((clueId) => VALID_CLUE_IDS.has(clueId)))];
+  return [...new Set(value.filter((itemId) => ITEM_IDS.has(itemId)))];
 }
 
 function readLocal() {
   try {
-    return normalizeClues(
+    return normalizeItems(
       JSON.parse(window.localStorage.getItem(STORAGE_KEY) || "[]"),
     );
   } catch {
@@ -32,14 +40,27 @@ function readLocal() {
   }
 }
 
-function saveLocal(clues) {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(clues));
+function saveLocal(items) {
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
 }
 
 function getProvider(user) {
   if (user.isAnonymous) return "anonymous";
   return user.providerData[0]?.providerId || "password";
 }
+
+// OFFLINE se detecta con navigator.onLine y los eventos online/offline del navegador.
+function subscribeConnection(onChange) {
+  window.addEventListener("online", onChange);
+  window.addEventListener("offline", onChange);
+  return () => {
+    window.removeEventListener("online", onChange);
+    window.removeEventListener("offline", onChange);
+  };
+}
+
+const getOnline = () => navigator.onLine;
+const getServerOnline = () => true;
 
 async function saveUserProfile(user, db) {
   const userRef = doc(db, "users", user.uid);
@@ -59,8 +80,8 @@ async function saveUserProfile(user, db) {
 }
 
 export function useProgress() {
-  const [clues, setClues] = useState([]);
-  const cluesRef = useRef([]);
+  const [items, setItems] = useState([]);
+  const itemsRef = useRef([]);
   const [ready, setReady] = useState(false);
   const [syncState, setSyncState] = useState("local");
   const [remoteUser, setRemoteUser] = useState(null);
@@ -68,14 +89,19 @@ export function useProgress() {
   const [authUser, setAuthUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(false);
   const [authError, setAuthError] = useState("");
+  const online = useSyncExternalStore(
+    subscribeConnection,
+    getOnline,
+    getServerOnline,
+  );
 
   useEffect(() => {
-    const localClues = readLocal();
-    cluesRef.current = localClues;
+    const localItems = readLocal();
+    itemsRef.current = localItems;
 
     const hydrateLocal = window.setTimeout(() => {
-      setClues(localClues);
-      saveLocal(localClues);
+      setItems(localItems);
+      saveLocal(localItems);
       setReady(true);
     }, 0);
 
@@ -104,17 +130,17 @@ export function useProgress() {
 
         const progressRef = doc(db, "progress", user.uid);
         const snapshot = await getDoc(progressRef);
-        const remoteClues = normalizeClues(
+        const remoteItems = normalizeItems(
           snapshot.exists() ? snapshot.data().clues : [],
         );
-        const mergedClues = normalizeClues([
-          ...cluesRef.current,
-          ...remoteClues,
+        const mergedItems = normalizeItems([
+          ...itemsRef.current,
+          ...remoteItems,
         ]);
 
-        cluesRef.current = mergedClues;
-        setClues(mergedClues);
-        saveLocal(mergedClues);
+        itemsRef.current = mergedItems;
+        setItems(mergedItems);
+        saveLocal(mergedItems);
         remoteUserRef.current = user;
         setRemoteUser(user);
         setAuthUser(user);
@@ -142,26 +168,26 @@ export function useProgress() {
       {
         userId: remoteUser.uid,
         authProvider: getProvider(remoteUser),
-        clues,
+        clues: items,
         updatedAt: serverTimestamp(),
       },
       { merge: true },
     ).catch((error) => console.warn("No se pudo sincronizar el progreso.", error));
-  }, [clues, ready, remoteUser]);
+  }, [items, ready, remoteUser]);
 
-  const discover = useCallback((clueId) => {
-    if (!VALID_CLUE_IDS.has(clueId) || cluesRef.current.includes(clueId)) return;
+  const collect = useCallback((itemId) => {
+    if (!ITEM_IDS.has(itemId) || itemsRef.current.includes(itemId)) return;
 
-    const nextClues = [...cluesRef.current, clueId];
-    cluesRef.current = nextClues;
-    saveLocal(nextClues);
-    setClues(nextClues);
+    const nextItems = [...itemsRef.current, itemId];
+    itemsRef.current = nextItems;
+    saveLocal(nextItems);
+    setItems(nextItems);
   }, []);
 
   const reset = useCallback(async () => {
-    cluesRef.current = [];
+    itemsRef.current = [];
     saveLocal([]);
-    setClues([]);
+    setItems([]);
 
     const user = remoteUserRef.current;
     if (!user || !hasFirebaseConfig) return;
@@ -225,7 +251,12 @@ export function useProgress() {
     }
   }, []);
 
-  const discovered = useMemo(() => new Set(clues), [clues]);
+  const collected = useMemo(() => new Set(items), [items]);
+  const persistence = !online
+    ? "offline"
+    : syncState === "cloud"
+      ? "cloud"
+      : "local";
 
   return {
     authError,
@@ -233,9 +264,10 @@ export function useProgress() {
     authUser,
     clearAuthError: () => setAuthError(""),
     continueAsGuest,
-    discover,
-    discovered,
+    collect,
+    collected,
     firebaseConfigured: hasFirebaseConfig,
+    persistence,
     ready,
     reset,
     signInWithGoogle,
