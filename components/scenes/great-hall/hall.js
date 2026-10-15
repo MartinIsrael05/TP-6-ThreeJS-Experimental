@@ -60,7 +60,7 @@ export function buildHall(ctx, bannerColors) {
   const tiles = (repeat) =>
     createPbrMaterial(ctx, { folder: FOLDER, name: "floor_tiles_02", repeat, color: "#4a4038", tint: "#cdbba6" });
   const wood = (repeat) =>
-    createPbrMaterial(ctx, { folder: FOLDER, name: "dark_wood", repeat, color: "#3a2618", roughness: 0.75 });
+    createPbrMaterial(ctx, { folder: FOLDER, name: "dark_wood", repeat, color: "#3a2618", tint: "#c9b8a6", roughness: 0.75 });
 
   // Piso y paredes.
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(width, length), tiles([width / 2, length / 2]));

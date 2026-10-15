@@ -88,8 +88,10 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
       camera.aspect = width / height;
       camera.updateProjectionMatrix();
       if (composer) {
-        composer.setPixelRatio(renderer.getPixelRatio());
+        // Primero el tamaño lógico y después el pixel ratio: al revés, el
+        // composer multiplicaría un ancho que ya viene en píxeles.
         composer.setSize(width, height);
+        composer.setPixelRatio(renderer.getPixelRatio());
       }
       api.resize?.(width, height);
     }

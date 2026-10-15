@@ -8,6 +8,7 @@ import { createCandles } from "@/components/scenes/great-hall/candles";
 import { createDust } from "@/components/scenes/great-hall/dust";
 import { createEnchantedCeiling } from "@/components/scenes/great-hall/enchantedCeiling";
 import { buildHall, HALL } from "@/components/scenes/great-hall/hall";
+import { createComposer } from "@/lib/three/postprocessing";
 
 const FOG_COLOR = "#1b130d";
 const CAMERA_POSITION = new THREE.Vector3(0, 2.6, -9);
@@ -18,10 +19,10 @@ const PARALLAX = new THREE.Vector2(0.45, 0.22);
 // Luces reales: pocas y cálidas. El resto de la luz lo dan las velas con
 // emissive y bloom.
 const LIGHTS = [
-  { position: [0, 5.2, -3], intensity: 26 },
-  { position: [0, 5.2, -13], intensity: 30 },
-  { position: [0, 5.2, -22], intensity: 30 },
-  { position: [0, 4, -31], intensity: 34 },
+  { position: [-2.6, 5.4, -3], intensity: 26 },
+  { position: [2.6, 5.4, -13], intensity: 30 },
+  { position: [-2.6, 5.4, -22], intensity: 30 },
+  { position: [0, 4.2, -30], intensity: 70 },
 ];
 
 function setupGreatHall(ctx) {
@@ -30,7 +31,7 @@ function setupGreatHall(ctx) {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.05;
   scene.background = new THREE.Color(FOG_COLOR);
-  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.045);
+  scene.fog = new THREE.FogExp2(FOG_COLOR, 0.036);
 
   camera.fov = 50;
   camera.near = 0.1;
@@ -82,7 +83,18 @@ function setupGreatHall(ctx) {
   });
   listen(renderer.domElement, "pointerleave", () => pointer.set(0, 0));
 
+  // Bloom suave para llamas y estrellas, corrección cálida y viñeta. Si el
+  // equipo no llega a 40 FPS, useThreeScene lo apaga solo.
+  const composer = createComposer({
+    renderer,
+    scene,
+    camera,
+    bloom: { strength: 0.75, radius: 0.55, threshold: 0.85 },
+    grade: { warmth: [1.05, 1, 0.9], vignette: 0.5 },
+  });
+
   return {
+    composer,
     update({ elapsed, delta, reducedMotion }) {
       if (!reducedMotion) {
         eased.lerp(pointer, 1 - Math.exp(-delta * 3));

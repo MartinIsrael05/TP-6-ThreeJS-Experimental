@@ -158,7 +158,7 @@ export function createEnchantedCeiling({ width, length, height, centerZ }) {
       {
         uTime: { value: 0 },
         uSize: { value: new THREE.Vector2(width, length) },
-        uZenith: { value: new THREE.Color("#1d2a52") },
+        uZenith: { value: new THREE.Color("#25386e") },
         uHorizon: { value: new THREE.Color("#080a16") },
         uCloudColor: { value: new THREE.Color("#66739a") },
         uStarColor: { value: new THREE.Color("#fff3d6") },
