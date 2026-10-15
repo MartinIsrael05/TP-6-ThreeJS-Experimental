@@ -2,16 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { getHouse } from "@/data/houses";
 import {
-  ending,
+  ending as fallbackEnding,
   itemTypeLabels,
   persistenceLabels,
   places,
   prologue,
 } from "@/data/places";
+import { spells } from "@/data/spells";
+import { getWand, wandName } from "@/data/wands";
 import { useProgress } from "@/hooks/useProgress";
 import AuthPanel from "@/components/AuthPanel";
+import SortingHatDialog from "@/components/SortingHatDialog";
 import ThreeArtifact from "@/components/ThreeArtifact";
+import WandDialog from "@/components/WandDialog";
+
+// Lugares que se resuelven con un diálogo HTML en lugar de marcarse directo.
+const DIALOG_BY_ITEM = { sombrero: "sorting", varita: "wand" };
 
 export default function Experience({ initialPlaceId }) {
   const router = useRouter();
@@ -23,19 +31,27 @@ export default function Experience({ initialPlaceId }) {
   const [flash, setFlash] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
+  const [dialog, setDialog] = useState(null);
   const {
     authError,
     authLoading,
     authUser,
+    chooseHouse,
+    chooseWand,
     continueAsGuest,
     collected,
     collect,
+    ending: endingHouseId,
     firebaseConfigured,
+    house: houseId,
+    learnSpell,
     persistence,
     ready,
     reset,
+    setCurrentPlace,
     signInWithGoogle,
     submitEmail,
+    wand: wandId,
   } = useProgress();
   const place = places[activeIndex];
   const nextPlace = places[activeIndex + 1];
@@ -44,6 +60,18 @@ export default function Experience({ initialPlaceId }) {
     collected.has(entry.item.id),
   ).length;
   const status = persistenceLabels[persistence];
+  const house = houseId ? getHouse(houseId) : null;
+  const wand = wandId ? getWand(wandId) : null;
+  const endingHouse = endingHouseId ? getHouse(endingHouseId) : null;
+  const finale = endingHouse
+    ? { eyebrow: `Final de ${endingHouse.name}`, ...endingHouse.ending }
+    : fallbackEnding;
+  const itemDetail =
+    place.item.id === "sombrero" && house
+      ? house.name
+      : place.item.id === "varita" && wand
+        ? wandName(wand)
+        : null;
 
   useEffect(() => {
     if (!flash) return;
@@ -51,15 +79,46 @@ export default function Experience({ initialPlaceId }) {
     return () => window.clearTimeout(timeout);
   }, [flash]);
 
-  function handleCollect() {
-    if (isCollected) return;
+  useEffect(() => {
+    if (ready && initialPlaceId) setCurrentPlace(initialPlaceId);
+  }, [ready, initialPlaceId, setCurrentPlace]);
+
+  // La casa pisa los acentos dorados de todo el sitio (variables de :root).
+  useEffect(() => {
+    const root = document.documentElement;
+    if (house) {
+      root.style.setProperty("--dorado", house.color);
+      root.style.setProperty("--dorado-claro", house.accent);
+      root.dataset.house = house.id;
+    } else {
+      root.style.removeProperty("--dorado");
+      root.style.removeProperty("--dorado-claro");
+      delete root.dataset.house;
+    }
+  }, [house]);
+
+  function completeItem(itemId) {
+    if (collected.has(itemId)) return;
     const completesExperience = places.every(
-      (entry) => entry.item.id === place.item.id || collected.has(entry.item.id),
+      (entry) => entry.item.id === itemId || collected.has(entry.item.id),
     );
 
-    collect(place.item.id);
+    collect(itemId);
     setFlash(true);
     if (completesExperience) setCompletionOpen(true);
+  }
+
+  function handleCollect() {
+    if (isCollected) return;
+    const dialogId = DIALOG_BY_ITEM[place.item.id];
+    if (dialogId) setDialog(dialogId);
+    else completeItem(place.item.id);
+  }
+
+  function handleWandChosen(chosenWandId) {
+    chooseWand(chosenWandId);
+    spells.forEach((spell) => learnSpell(spell.id));
+    completeItem("varita");
   }
 
   function canOpen(index) {
@@ -189,6 +248,7 @@ export default function Experience({ initialPlaceId }) {
             <small>{itemTypeLabels[place.item.type]}</small>
             <strong>
               {isCollected ? place.item.label : "Todavía en blanco"}
+              {isCollected && itemDetail && <span>{itemDetail}</span>}
             </strong>
           </div>
         </article>
@@ -209,7 +269,9 @@ export default function Experience({ initialPlaceId }) {
                 : place.instruction}
             </p>
             {!isCollected && (
-              <button onClick={handleCollect}>Resolver sin la escena 3D</button>
+              <button onClick={handleCollect}>
+                {place.action ?? "Resolver sin la escena 3D"}
+              </button>
             )}
             {isCollected && nextPlace && (
               <button onClick={() => openPlace(nextPlace.id)}>
@@ -238,10 +300,28 @@ export default function Experience({ initialPlaceId }) {
           >
             ×
           </button>
-          <p className="completion-eyebrow">{ending.eyebrow}</p>
-          <h2 id="completion-title">{ending.title}</h2>
-          <p>{ending.copy}</p>
+          <p className="completion-eyebrow">{finale.eyebrow}</p>
+          <h2 id="completion-title">{finale.title}</h2>
+          <p>{finale.copy}</p>
         </section>
+      )}
+
+      {dialog === "sorting" && (
+        <SortingHatDialog
+          onSorted={chooseHouse}
+          onDone={() => {
+            setDialog(null);
+            completeItem("sombrero");
+          }}
+          onClose={() => setDialog(null)}
+        />
+      )}
+
+      {dialog === "wand" && (
+        <WandDialog
+          onChoose={handleWandChosen}
+          onClose={() => setDialog(null)}
+        />
       )}
 
       {authOpen && (

@@ -14,9 +14,9 @@ export const prologue = {
 };
 
 export const ending = {
-  eyebrow: "Final provisorio",
+  eyebrow: "Final sin casa",
   title: "Cerraste el diario antes que él.",
-  copy: "Las tres páginas volvieron a su lugar y la tinta dejó de moverse. Fin del prototipo: más adelante, este final va a depender de tu casa.",
+  copy: "Las tres páginas volvieron a su lugar y la tinta dejó de moverse. Llegaste hasta acá sin que el Sombrero te eligiera: tu casa todavía te espera en el Gran Comedor.",
 };
 
 // Cómo se nombra cada tipo de ítem en la tarjeta del lugar.

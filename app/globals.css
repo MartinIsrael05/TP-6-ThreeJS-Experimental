@@ -192,7 +192,7 @@ button { color: inherit; font: inherit; }
   transition: background-color 0.2s, color 0.2s;
   animation: ink-in 1s 0.8s ease-out both;
 }
-.enter-button:hover { background: var(--dorado); color: var(--tinta); }
+.enter-button:hover { background: var(--dorado-claro); color: var(--tinta); }
 
 .intro-note {
   margin: 20px 0 0;
@@ -436,7 +436,7 @@ button { color: inherit; font: inherit; }
   letter-spacing: 0.1em;
   cursor: pointer;
 }
-.fallback-actions button:hover { background: var(--dorado); color: var(--tinta); }
+.fallback-actions button:hover { background: var(--dorado-claro); color: var(--tinta); }
 .fallback-actions a { color: var(--pergamino); text-underline-offset: 4px; }
 
 /* Carta de admisión: el mismo papel que el diario, lacre color vino. */
@@ -484,7 +484,7 @@ button { color: inherit; font: inherit; }
 }
 .auth-form input:focus { border-color: var(--vino); outline: none; box-shadow: 0 0 0 2px rgba(109, 26, 40, 0.18); }
 
-.auth-primary, .auth-google, .auth-current button {
+.auth-primary, .auth-google, .auth-current button, .dialog-primary {
   width: 100%;
   border: 1px solid var(--vino);
   padding: 12px;
@@ -495,7 +495,7 @@ button { color: inherit; font: inherit; }
   letter-spacing: 0.08em;
   cursor: pointer;
 }
-.auth-primary:disabled, .auth-google:disabled, .auth-current button:disabled { opacity: 0.5; cursor: wait; }
+.auth-primary:disabled, .auth-google:disabled, .auth-current button:disabled, .dialog-primary:disabled { opacity: 0.5; cursor: wait; }
 .auth-google, .auth-current button { background: transparent; color: var(--vino); }
 .auth-google:hover, .auth-current button:hover { background: rgba(109, 26, 40, 0.08); }
 
@@ -508,6 +508,61 @@ button { color: inherit; font: inherit; }
 .auth-current small { color: var(--vino); font-size: 0.92rem; font-style: italic; }
 .auth-current strong { overflow-wrap: anywhere; font-family: var(--titulo); font-size: 1.25rem; font-weight: 500; }
 .auth-current span { margin-bottom: 16px; color: #5e4c3a; overflow-wrap: anywhere; }
+
+/* Diálogos del Sombrero y de Ollivanders: el mismo papel que la carta. */
+
+.paper-dialog {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100svh - 32px);
+  border: 0;
+  padding: 34px 30px 28px;
+  background: linear-gradient(176deg, var(--papel) 0%, var(--papel-sombra) 100%);
+  color: var(--tinta-papel);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.6);
+}
+.paper-dialog::backdrop { background: rgba(12, 8, 6, 0.86); backdrop-filter: blur(8px); }
+.paper-dialog :focus-visible { outline-color: var(--vino); }
+.paper-dialog h2 { margin: 0 0 12px; font-family: var(--titulo); font-size: clamp(1.5rem, 4.5vw, 2rem); font-weight: 500; line-height: 1.15; }
+.paper-dialog p { margin: 0 0 14px; line-height: 1.55; }
+
+.dialog-close { position: absolute; top: 12px; right: 16px; border: 0; background: none; color: var(--tinta-papel); font-size: 1.8rem; line-height: 1; cursor: pointer; }
+.dialog-eyebrow { color: var(--vino); font-size: 0.92rem; font-style: italic; }
+.paper-dialog .dialog-eyebrow { margin-bottom: 4px; }
+.dialog-intro { font-size: 1.02rem; }
+
+.dialog-choices { display: grid; gap: 8px; margin: 0 0 18px; border: 0; padding: 0; }
+.dialog-choices legend { margin-bottom: 12px; padding: 0; font-family: var(--titulo); font-size: 1.12rem; line-height: 1.35; }
+.dialog-choices legend small { display: block; margin-bottom: 4px; color: #6f5b45; font-family: var(--texto); font-size: 0.9rem; font-style: italic; }
+
+.choice {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: start;
+  gap: 12px;
+  border: 1px solid rgba(46, 28, 18, 0.22);
+  padding: 10px 14px;
+  font-size: 1rem;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.choice:hover { border-color: rgba(109, 26, 40, 0.5); }
+.choice:has(input:checked) { border-color: var(--vino); background: rgba(109, 26, 40, 0.07); }
+.choice input { margin: 4px 0 0; accent-color: var(--vino); }
+.choice b { display: block; font-family: var(--titulo); font-size: 0.95rem; font-weight: 500; }
+
+.dialog-primary:disabled { cursor: not-allowed; }
+
+.house-result { border-left: 4px solid var(--house-color); padding-left: 18px; }
+.house-name { font-family: var(--titulo); font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.1; }
+.paper-dialog .house-name { margin-bottom: 10px; }
+
+.wand-chosen { font-family: var(--titulo); font-size: 1.15rem; }
+.spell-list { display: grid; gap: 12px; margin: 0 0 22px; padding: 0; list-style: none; }
+.spell-list li { border-left: 2px solid var(--vino); padding-left: 12px; }
+.spell-list strong { display: block; font-family: var(--titulo); font-size: 1.05rem; font-weight: 500; }
+.spell-list span { font-size: 0.98rem; line-height: 1.5; }
+
+.diary-page strong span { display: block; margin-top: 4px; font-family: var(--texto); font-size: 1rem; font-style: italic; }
 
 /* Responsive */
 
