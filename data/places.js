@@ -1,5 +1,8 @@
 // Contenido narrativo del recorrido. Los textos son provisorios (Fase 1).
 // Cada lugar tiene un ítem coleccionable: conseguirlo desbloquea el siguiente.
+// action (opcional) es el texto del botón que abre un diálogo en lugar de
+// resolver el lugar directo. Los ids de lugares e ítems están repetidos en
+// firestore.rules (validPlaces, validItems): si cambian acá, cambian allá.
 
 export const siteName = "Las páginas del diario";
 
@@ -39,7 +42,8 @@ export const places = [
     eyebrow: "Primera noche en el castillo",
     title: "El Sombrero todavía no dijo tu nombre.",
     copy: "Cuatro mesas largas, velas que flotan sin hilo y un techo que copia el cielo de afuera. Entre los platos alguien dejó un cuaderno negro sin dueño. Antes de abrirlo, el Sombrero tiene que decidir dónde vas a dormir.",
-    instruction: "Tocá el Sombrero para que elija tu casa.",
+    instruction: "Ponete el Sombrero y respondé lo que te pregunte.",
+    action: "Ponerme el Sombrero",
     color: "#c9a227",
     accent: "#f1d58a",
     item: { id: "sombrero", type: "decision", label: "Tu casa quedó elegida" },
@@ -51,7 +55,8 @@ export const places = [
     eyebrow: "Un recuerdo guardado en el diario",
     title: "Ninguna caja se abre hasta que la varita te reconoce.",
     copy: "El diario se entibia en tus manos y te muestra un recuerdo: una tienda angosta, miles de cajas apiladas hasta el techo y un polvo que brilla con la luz. Una de esas varitas te está esperando desde antes de que nacieras.",
-    instruction: "Tocá las cajas hasta que una varita responda.",
+    instruction: "Probá varitas hasta que una te responda.",
+    action: "Probar varitas",
     color: "#a9742f",
     accent: "#e7b872",
     item: { id: "varita", type: "decision", label: "La varita ya es tuya" },
@@ -109,6 +114,8 @@ export const places = [
 export const firstPlace = places[0];
 
 export const ITEM_IDS = new Set(places.map((place) => place.item.id));
+
+export const PLACE_IDS = new Set(places.map((place) => place.id));
 
 export function getPlace(id) {
   return places.find((place) => place.id === id);
