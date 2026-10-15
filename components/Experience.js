@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Estado narrativo, navegación con useRouter y eventos del usuario.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -59,11 +59,11 @@ export default function Experience({ initialPlaceId }) {
   }
 
   function enterExperience() {
-    router.push(`/archivo/${places[0].id}`);
+    router.push(`/castillo/${places[0].id}`);
   }
 
   function openPlace(placeId) {
-    router.push(`/archivo/${placeId}`);
+    router.push(`/castillo/${placeId}`);
   }
 
   function returnToStart() {

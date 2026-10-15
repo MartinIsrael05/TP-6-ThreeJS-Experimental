@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Hook con estado, efectos, localStorage y Firebase: solo existe en el navegador.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {

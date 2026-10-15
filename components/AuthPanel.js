@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Formulario con estado local y handlers de Firebase Auth.
 
 import { useState } from "react";
 

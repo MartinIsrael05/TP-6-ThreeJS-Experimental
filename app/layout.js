@@ -1,8 +1,13 @@
+import { siteName } from "@/data/places";
 import "./globals.css";
 
 export const metadata = {
-  title: "SEÑAL 88 — archivo transmedia",
-  description: "Boilerplate experimental con Next.js, Firebase y Three.js",
+  title: {
+    default: siteName,
+    template: `%s | ${siteName}`,
+  },
+  description:
+    "Experiencia web transmedia ambientada en Hogwarts: seguí las páginas arrancadas del diario de Tom Riddle por el castillo hasta la Cámara de los Secretos. TP6 de Programación Multimedial III, UMAI.",
 };
 
 export default function RootLayout({ children }) {

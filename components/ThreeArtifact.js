@@ -1,4 +1,4 @@
-"use client";
+"use client"; // Three.js necesita el DOM, WebGL y useEffect: solo corre en el navegador.
 
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
