@@ -14,7 +14,9 @@ Cada recurso que se suma al repo se anota acá en el mismo Pull Request.
 
 | Recurso | Autor | Fuente | Licencia | Uso en el sitio |
 | --- | --- | --- | --- | --- |
-| | | | | |
+| Medieval Blocks 03 | Rob Tuytel | polyhaven.com/a/medieval_blocks_03 | CC0 | Paredes, arcos y columnas del Gran Comedor |
+| Floor Tiles 02 | Rob Tuytel | polyhaven.com/a/floor_tiles_02 | CC0 | Piso del Gran Comedor |
+| Dark Wood | Dario Barresi, Dimitrios Savva, Rico Cilliers | polyhaven.com/a/dark_wood | CC0 | Mesas y bancos del Gran Comedor |
 
 ## Tipografías
 

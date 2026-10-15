@@ -46,12 +46,15 @@ app/                      rutas (App Router), layout con metadata y fuentes, est
   page.js                 portada: el prólogo
   castillo/[lugar]/       ruta dinámica de cada lugar (generateStaticParams, metadata, notFound)
   loading.js, error.js, not-found.js   estados de carga, error y 404
-components/               Experience (estado narrativo), ThreeArtifact (escena), AuthPanel
-data/places.js            los 6 lugares con su ítem, prólogo, final y textos de persistencia
+components/               Experience (estado narrativo), ThreeArtifact (elige la escena), AuthPanel, diálogos
+  scenes/                 una escena 3D por lugar (Artifact es la genérica); piezas en scenes/<lugar>/
+data/                     lugares, casas, preguntas del Sombrero, varitas y hechizos
 hooks/useProgress.js      progreso local + Firebase (auth y Firestore) + estado nube/local/offline
+hooks/useThreeScene.js    renderer, cámara, resize, loop, calidad adaptable y limpieza de cada escena
+lib/three/                liberar recursos, materiales PBR con respaldo y postprocesado
 lib/firebase.js           inicialización de Firebase
 firestore.rules           reglas de acceso por usuario
-public/                   modelos .glb, texturas, audio (crear subcarpetas)
+public/                   modelos .glb, texturas (textures/<lugar>/), audio
 docs/                     propuesta, plan de IA y documentación del TP
 .claude/skills/ y .agents/skills/   skills aprobadas (mismo contenido, una copia por agente)
 ```

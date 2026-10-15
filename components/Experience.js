@@ -259,6 +259,7 @@ export default function Experience({ initialPlaceId }) {
             place={place}
             discovered={isCollected}
             onDiscover={handleCollect}
+            house={houseId}
           />
           <div className="artifact-caption">
             <p>
