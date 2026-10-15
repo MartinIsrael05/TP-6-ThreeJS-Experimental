@@ -1,28 +1,27 @@
 import { notFound } from "next/navigation";
 import Experience from "@/components/Experience";
-import { chapters } from "@/data/chapters";
+import { getPlace, places } from "@/data/places";
 
 export function generateStaticParams() {
-  return chapters.map((chapter) => ({ chapter: chapter.id }));
+  return places.map((place) => ({ chapter: place.id }));
 }
 
 export async function generateMetadata({ params }) {
-  const { chapter: chapterId } = await params;
-  const chapter = chapters.find((item) => item.id === chapterId);
+  const { chapter: placeId } = await params;
+  const place = getPlace(placeId);
 
-  if (!chapter) return {};
+  if (!place) return {};
 
   return {
-    title: `${chapter.label} — SEÑAL 88`,
-    description: chapter.copy,
+    title: `${place.label} — SEÑAL 88`,
+    description: place.copy,
   };
 }
 
 export default async function ChapterPage({ params }) {
-  const { chapter: chapterId } = await params;
-  const chapterExists = chapters.some((item) => item.id === chapterId);
+  const { chapter: placeId } = await params;
 
-  if (!chapterExists) notFound();
+  if (!getPlace(placeId)) notFound();
 
-  return <Experience initialChapterId={chapterId} />;
+  return <Experience initialPlaceId={placeId} />;
 }

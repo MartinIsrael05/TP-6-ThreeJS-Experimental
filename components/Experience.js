@@ -2,18 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { chapters } from "@/data/chapters";
+import { places } from "@/data/places";
 import { useProgress } from "@/hooks/useProgress";
 import AuthPanel from "@/components/AuthPanel";
 import ThreeArtifact from "@/components/ThreeArtifact";
 
-export default function Experience({ initialChapterId }) {
+export default function Experience({ initialPlaceId }) {
   const router = useRouter();
   const activeIndex = Math.max(
-    chapters.findIndex((item) => item.id === initialChapterId),
+    places.findIndex((entry) => entry.id === initialPlaceId),
     0,
   );
-  const entered = Boolean(initialChapterId);
+  const entered = Boolean(initialPlaceId);
   const [flash, setFlash] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
@@ -22,8 +22,8 @@ export default function Experience({ initialChapterId }) {
     authLoading,
     authUser,
     continueAsGuest,
-    discovered,
-    discover,
+    collected,
+    collect,
     firebaseConfigured,
     ready,
     reset,
@@ -31,10 +31,10 @@ export default function Experience({ initialChapterId }) {
     submitEmail,
     syncState,
   } = useProgress();
-  const chapter = chapters[activeIndex];
-  const isDiscovered = discovered.has(chapter.clueId);
-  const discoveredCount = chapters.filter((item) =>
-    discovered.has(item.clueId),
+  const place = places[activeIndex];
+  const isCollected = collected.has(place.item.id);
+  const collectedCount = places.filter((entry) =>
+    collected.has(entry.item.id),
   ).length;
 
   useEffect(() => {
@@ -43,27 +43,27 @@ export default function Experience({ initialChapterId }) {
     return () => window.clearTimeout(timeout);
   }, [flash]);
 
-  function handleDiscover() {
-    if (isDiscovered) return;
-    const completesExperience = chapters.every(
-      (item) => item.clueId === chapter.clueId || discovered.has(item.clueId),
+  function handleCollect() {
+    if (isCollected) return;
+    const completesExperience = places.every(
+      (entry) => entry.item.id === place.item.id || collected.has(entry.item.id),
     );
 
-    discover(chapter.clueId);
+    collect(place.item.id);
     setFlash(true);
     if (completesExperience) setCompletionOpen(true);
   }
 
   function canOpen(index) {
-    return index === 0 || discovered.has(chapters[index - 1].clueId);
+    return index === 0 || collected.has(places[index - 1].item.id);
   }
 
   function enterExperience() {
-    router.push(`/archivo/${chapters[0].id}`);
+    router.push(`/archivo/${places[0].id}`);
   }
 
-  function openChapter(chapterId) {
-    router.push(`/archivo/${chapterId}`);
+  function openPlace(placeId) {
+    router.push(`/archivo/${placeId}`);
   }
 
   function returnToStart() {
@@ -110,7 +110,7 @@ export default function Experience({ initialChapterId }) {
         </button>
         <div className="status">
           <span>{syncState === "cloud" ? "NUBE" : "LOCAL"}</span>
-          <span>SEÑAL {Math.round((discoveredCount / chapters.length) * 100)}%</span>
+          <span>SEÑAL {Math.round((collectedCount / places.length) * 100)}%</span>
           {firebaseConfigured && (
             <button className="auth-trigger" onClick={() => setAuthOpen(true)}>
               {authUser?.isAnonymous
@@ -121,21 +121,21 @@ export default function Experience({ initialChapterId }) {
         </div>
       </header>
 
-      <section className="chapter-layout" style={{ "--signal": chapter.color }}>
+      <section className="chapter-layout" style={{ "--signal": place.color }}>
         <aside className="chapter-nav" aria-label="Fragmentos de la transmisión">
-          {chapters.map((item, index) => {
+          {places.map((entry, index) => {
             const unlocked = canOpen(index);
             return (
               <button
-                key={item.id}
+                key={entry.id}
                 className={index === activeIndex ? "active" : ""}
                 disabled={!unlocked}
-                onClick={() => openChapter(item.id)}
-                aria-label={`${item.label}${unlocked ? "" : " bloqueado"}`}
+                onClick={() => openPlace(entry.id)}
+                aria-label={`${entry.label}${unlocked ? "" : " bloqueado"}`}
               >
-                <b>{item.number}</b>
-                <span>{item.label}</span>
-                <i>{discovered.has(item.clueId) ? "◆" : unlocked ? "◇" : "×"}</i>
+                <b>{entry.number}</b>
+                <span>{entry.label}</span>
+                <i>{collected.has(entry.item.id) ? "◆" : unlocked ? "◇" : "×"}</i>
               </button>
             );
           })}
@@ -147,29 +147,29 @@ export default function Experience({ initialChapterId }) {
         </aside>
 
         <div className="narrative">
-          <p className="kicker">{chapter.eyebrow}</p>
-          <p className="chapter-number">FRAGMENTO {chapter.number}</p>
-          <h2>{chapter.title}</h2>
-          <p className="chapter-copy">{chapter.copy}</p>
+          <p className="kicker">{place.eyebrow}</p>
+          <p className="chapter-number">FRAGMENTO {place.number}</p>
+          <h2>{place.title}</h2>
+          <p className="chapter-copy">{place.copy}</p>
 
-          <div className={`clue-card ${isDiscovered ? "found" : ""}`}>
-            <small>{isDiscovered ? "EVIDENCIA RECUPERADA" : "EVIDENCIA CIFRADA"}</small>
-            <strong>{isDiscovered ? chapter.clueLabel : "██████ ████"}</strong>
+          <div className={`clue-card ${isCollected ? "found" : ""}`}>
+            <small>{isCollected ? "EVIDENCIA RECUPERADA" : "EVIDENCIA CIFRADA"}</small>
+            <strong>{isCollected ? place.item.label : "██████ ████"}</strong>
           </div>
         </div>
 
         <div className="artifact-panel">
           <ThreeArtifact
-            key={chapter.id}
-            chapter={chapter}
-            discovered={isDiscovered}
-            onDiscover={handleDiscover}
+            key={place.id}
+            place={place}
+            discovered={isCollected}
+            onDiscover={handleCollect}
           />
           <div className="artifact-caption">
-            <span>[ OBJETO {chapter.number} ]</span>
-            <p>{isDiscovered ? "Frecuencia aislada." : chapter.instruction}</p>
-            {!isDiscovered && (
-              <button onClick={handleDiscover}>INSPECCIONAR NÚCLEO</button>
+            <span>[ OBJETO {place.number} ]</span>
+            <p>{isCollected ? "Frecuencia aislada." : place.instruction}</p>
+            {!isCollected && (
+              <button onClick={handleCollect}>INSPECCIONAR NÚCLEO</button>
             )}
           </div>
         </div>

@@ -1,5 +1,5 @@
 import Experience from "@/components/Experience";
 
 export default function Home() {
-  return <Experience initialChapterId={null} />;
+  return <Experience initialPlaceId={null} />;
 }
