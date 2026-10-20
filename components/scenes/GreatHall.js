@@ -178,7 +178,7 @@ function setupGreatHall(ctx) {
       ceiling.update(elapsed);
       candles.update(elapsed, delta);
       dust.update(elapsed, delta);
-      sparks.update(delta);
+      sparks.update(reducedMotion ? 1 : delta);
       sortingHat.update({ elapsed, delta, highlight: hovered ? 1 : 0, idle: !props.current.discovered });
 
       // Titileo de las luces: dos senos desfasados por luz, sin azar por

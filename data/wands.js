@@ -1,5 +1,7 @@
 // Varitas de Ollivanders. Los ids están repetidos en firestore.rules
-// (validWands): si cambian acá, cambian allá.
+// (validWands): si cambian acá, cambian allá. trial es lo que pasa en la
+// tienda cuando la probás: se apaga la vela, estalla el frasco, tiembla el
+// estante o llueven chispas.
 
 export const wandShop = {
   title: "Ollivanders",
@@ -12,6 +14,7 @@ export const wandShop = {
 export const wands = [
   {
     id: "sauce-unicornio",
+    trial: "vela",
     wood: "Sauce",
     core: "pelo de unicornio",
     lengthCm: 26,
@@ -19,6 +22,7 @@ export const wands = [
   },
   {
     id: "cerezo-dragon",
+    trial: "frasco",
     wood: "Cerezo",
     core: "fibra de corazón de dragón",
     lengthCm: 29,
@@ -26,6 +30,7 @@ export const wands = [
   },
   {
     id: "nogal-fenix",
+    trial: "estante",
     wood: "Nogal",
     core: "pluma de fénix",
     lengthCm: 31,
@@ -33,6 +38,7 @@ export const wands = [
   },
   {
     id: "abedul-unicornio",
+    trial: "chispas",
     wood: "Abedul",
     core: "pelo de unicornio",
     lengthCm: 24,

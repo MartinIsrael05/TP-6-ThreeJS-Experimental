@@ -1,7 +1,8 @@
 // Contenido narrativo del recorrido. Los textos son provisorios (Fase 1).
 // Cada lugar tiene un ítem coleccionable: conseguirlo desbloquea el siguiente.
-// action (opcional) es el texto del botón que abre un diálogo en lugar de
-// resolver el lugar directo. Los ids de lugares e ítems están repetidos en
+// action (opcional) es el texto del botón alternativo a la escena 3D: abre un
+// diálogo (Sombrero, varitas) o resuelve el lugar. Si falta, el botón lanza
+// el hechizo de data/spells.js que se usa en ese lugar. Los ids de lugares e ítems están repetidos en
 // firestore.rules (validPlaces, validItems): si cambian acá, cambian allá.
 
 export const siteName = "Las páginas del diario";
@@ -55,7 +56,7 @@ export const places = [
     eyebrow: "Un recuerdo guardado en el diario",
     title: "Ninguna caja se abre hasta que la varita te reconoce.",
     copy: "El diario se entibia en tus manos y te muestra un recuerdo: una tienda angosta, miles de cajas apiladas hasta el techo y un polvo que brilla con la luz. Una de esas varitas te está esperando desde antes de que nacieras.",
-    instruction: "Probá varitas hasta que una te responda.",
+    instruction: "Tocá una caja de los estantes y probá varitas hasta que una te responda.",
     action: "Probar varitas",
     color: "#a9742f",
     accent: "#e7b872",
@@ -68,7 +69,7 @@ export const places = [
     eyebrow: "Torre central, después del toque de queda",
     title: "Las escaleras cambian de idea cuando quieren.",
     copy: "La primera página arrancada está en un descanso al que ninguna escalera llega. Los tramos giran con un ruido de piedra contra piedra. Si los alineás en el orden justo, el camino se arma solo.",
-    instruction: "Girá los tramos hasta que el camino quede alineado.",
+    instruction: "Tocá cada tramo para girarlo hasta que el camino suba sin cortes. La runa de cada tramo se pone verde cuando quedó bien.",
     color: "#4a6fa5",
     accent: "#a9c1e6",
     item: { id: "pagina-1", type: "pagina", label: "Primera página del diario" },
@@ -80,7 +81,8 @@ export const places = [
     eyebrow: "Segundo piso, cerca del baño clausurado",
     title: "Hay un mensaje en la pared que solo se lee con luz.",
     copy: "El pasillo está inundado y huele a humedad. La segunda página habla de algo escrito en la piedra, pero en esta oscuridad no se ve nada. Las arañas se van todas para el mismo lado.",
-    instruction: "Levantá la varita y decí Lumos para iluminar la pared.",
+    instruction: "Tocá la escena para encender la varita y pasá la luz por la pared hasta leer todo el mensaje.",
+    secret: ["La Cámara se abrió otra vez.", "El heredero ya camina entre nosotros."],
     color: "#9fc6d8",
     accent: "#ece2cd",
     item: { id: "pagina-2", type: "pagina", label: "Segunda página del diario" },
@@ -92,7 +94,7 @@ export const places = [
     eyebrow: "Las tribunas, con niebla baja",
     title: "La tercera página está atada a una snitch.",
     copy: "El campo está vacío y los aros apenas se recortan contra el cielo. Algo dorado zumba entre las tribunas: una snitch con un papel doblado entre las alas. No va a esperar a que te decidas.",
-    instruction: "Seguí el brillo y atrapá la snitch.",
+    instruction: "Seguí el brillo y tocá la snitch para atraparla. Cada vez que fallás se escapa, pero se va cansando.",
     color: "#5c7a46",
     accent: "#d9c36a",
     item: { id: "pagina-3", type: "pagina", label: "Tercera página del diario" },
@@ -104,7 +106,8 @@ export const places = [
     eyebrow: "Debajo del castillo",
     title: "La puerta solo se abre si le hablás como a una serpiente.",
     copy: "Con las tres páginas juntas, el diario dibuja un camino que baja más allá de las mazmorras. Al final hay una puerta redonda con serpientes talladas. Si entrás antes que él, el diario se cierra para siempre.",
-    instruction: "Hablá en pársel para que la puerta se abra.",
+    instruction: "La puerta sisea una secuencia: repetila tocando las serpientes en el mismo orden. Tocá el centro de la puerta para volver a escucharla.",
+    action: "Hablar en pársel",
     color: "#1f6b4f",
     accent: "#7fd4a8",
     item: { id: "camara-abierta", type: "final", label: "La Cámara está abierta" },

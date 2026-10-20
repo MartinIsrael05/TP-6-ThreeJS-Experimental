@@ -116,7 +116,11 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
     function frame(timestamp) {
       frameId = requestAnimationFrame(frame);
       timer.update(timestamp);
-      const delta = Math.min(timer.getDelta(), 0.1);
+      // El timestamp de requestAnimationFrame puede ser anterior al momento en
+      // que el Timer arrancó o se reinició (al volver a la pestaña): el delta
+      // sale negativo y los suavizados y partículas corren para atrás hasta
+      // dar valores infinitos. Se acota entre 0 y 100 ms.
+      const delta = THREE.MathUtils.clamp(timer.getDelta(), 0, 0.1);
       if (!reducedMotion) animTime += delta;
 
       api.update?.({ elapsed: animTime, delta: reducedMotion ? 0 : delta, reducedMotion });

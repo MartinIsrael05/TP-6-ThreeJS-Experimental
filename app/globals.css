@@ -605,6 +605,13 @@ button { color: inherit; font: inherit; }
 .house-name { font-family: var(--titulo); font-size: clamp(2rem, 7vw, 2.8rem); line-height: 1.1; }
 .paper-dialog .house-name { margin-bottom: 10px; }
 
+/* Ollivanders: el diálogo se corre a la izquierda y el fondo queda claro
+   para ver en la escena qué hace cada varita que probás. */
+@media (min-width: 901px) {
+  .paper-dialog.is-aside { margin-left: max(24px, 6vw); }
+  .paper-dialog.is-aside::backdrop { background: linear-gradient(90deg, rgba(12, 8, 6, 0.8), rgba(12, 8, 6, 0.15) 60%); backdrop-filter: none; }
+}
+
 .wand-chosen { font-family: var(--titulo); font-size: 1.15rem; }
 .spell-list { display: grid; gap: 12px; margin: 0 0 22px; padding: 0; list-style: none; }
 .spell-list li { border-left: 2px solid var(--vino); padding-left: 12px; }

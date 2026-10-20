@@ -1,6 +1,6 @@
 "use client"; // Estado narrativo, navegación con useRouter y eventos del usuario.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getHouse } from "@/data/houses";
 import {
@@ -25,6 +25,11 @@ import WandDialog from "@/components/WandDialog";
 // Lugares que se resuelven con un diálogo HTML en lugar de marcarse directo.
 const DIALOG_BY_ITEM = { sombrero: "sorting", varita: "wand" };
 
+// Hechizo que se usa en cada lugar: el botón alternativo a la escena 3D lo
+// lanza, la escena lo anima y después de CAST_MS el lugar queda resuelto.
+const SPELL_BY_PLACE = Object.fromEntries(spells.map((spell) => [spell.placeId, spell]));
+const CAST_MS = 1800;
+
 export default function Experience({ initialPlaceId }) {
   const router = useRouter();
   const activeIndex = Math.max(
@@ -36,6 +41,9 @@ export default function Experience({ initialPlaceId }) {
   const [authOpen, setAuthOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
   const [dialog, setDialog] = useState(null);
+  const [castingPlaceId, setCastingPlaceId] = useState(null);
+  const [wandTrial, setWandTrial] = useState(null);
+  const castTimer = useRef(0);
   const {
     authError,
     authLoading,
@@ -60,6 +68,10 @@ export default function Experience({ initialPlaceId }) {
   const place = places[activeIndex];
   const nextPlace = places[activeIndex + 1];
   const isCollected = collected.has(place.item.id);
+  const spell = SPELL_BY_PLACE[place.id];
+  const casting = castingPlaceId === place.id;
+  const alternativeLabel =
+    place.action ?? (spell ? `Lanzar ${spell.incantation}` : "Resolver sin la escena 3D");
   const collectedCount = places.filter((entry) =>
     collected.has(entry.item.id),
   ).length;
@@ -86,6 +98,9 @@ export default function Experience({ initialPlaceId }) {
   useEffect(() => {
     if (ready && initialPlaceId) setCurrentPlace(initialPlaceId);
   }, [ready, initialPlaceId, setCurrentPlace]);
+
+  // Si se cambia de lugar con un hechizo en el aire, el hechizo se pierde.
+  useEffect(() => () => window.clearTimeout(castTimer.current), [place.id]);
 
   // El primer gesto en la página desbloquea el audio. Cada lugar tiene su
   // ambiente; con el final abierto suena la caja de música en mayor.
@@ -122,10 +137,27 @@ export default function Experience({ initialPlaceId }) {
   }
 
   function handleCollect() {
-    if (isCollected) return;
+    if (isCollected || casting) return;
     const dialogId = DIALOG_BY_ITEM[place.item.id];
     if (dialogId) setDialog(dialogId);
-    else completeItem(place.item.id);
+    else castSpell();
+  }
+
+  // El botón alternativo: suena el hechizo, la escena lo anima (lee casting)
+  // y al rato el lugar queda resuelto, haya WebGL o no.
+  function castSpell() {
+    const itemId = place.item.id;
+    setCastingPlaceId(place.id);
+    playSfx(spell?.id === "lumos" ? "lumos" : spell ? "spell" : "hiss");
+    castTimer.current = window.setTimeout(() => {
+      setCastingPlaceId(null);
+      completeItem(itemId);
+    }, CAST_MS);
+  }
+
+  // La escena avisa que el puzzle se resolvió jugando.
+  function handleSolve() {
+    if (!casting) completeItem(place.item.id);
   }
 
   function handleWandChosen(chosenWandId) {
@@ -275,8 +307,11 @@ export default function Experience({ initialPlaceId }) {
             key={place.id}
             place={place}
             discovered={isCollected}
+            casting={casting}
             onDiscover={handleCollect}
+            onSolve={handleSolve}
             house={houseId}
+            trial={wandTrial}
           />
           <div className="artifact-caption">
             <p>
@@ -287,8 +322,8 @@ export default function Experience({ initialPlaceId }) {
                 : place.instruction}
             </p>
             {!isCollected && (
-              <button onClick={handleCollect}>
-                {place.action ?? "Resolver sin la escena 3D"}
+              <button onClick={handleCollect} disabled={casting}>
+                {alternativeLabel}
               </button>
             )}
             {isCollected && nextPlace && (
@@ -337,6 +372,7 @@ export default function Experience({ initialPlaceId }) {
 
       {dialog === "wand" && (
         <WandDialog
+          onTry={(trialWandId) => setWandTrial({ wandId: trialWandId, at: Date.now() })}
           onChoose={handleWandChosen}
           onClose={() => setDialog(null)}
         />

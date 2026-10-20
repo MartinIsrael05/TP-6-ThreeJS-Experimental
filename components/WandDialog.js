@@ -4,9 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { getPlace } from "@/data/places";
 import { spells } from "@/data/spells";
 import { getWand, wandName, wands, wandShop } from "@/data/wands";
+import { playSfx } from "@/lib/audio/sfx";
 
-// onChoose guarda la varita, enseña los hechizos y marca el ítem al confirmar.
-export default function WandDialog({ onChoose, onClose }) {
+// Sonido de cada prueba: la escena de Ollivanders muestra el efecto.
+const TRIAL_SFX = { vela: "puff", frasco: "glass", estante: "rattle", chispas: "spell" };
+
+// onTry avisa qué varita se está probando (la escena reacciona); onChoose
+// guarda la varita, enseña los hechizos y marca el ítem al confirmar.
+export default function WandDialog({ onTry, onChoose, onClose }) {
   const dialogRef = useRef(null);
   const [selected, setSelected] = useState("");
   const [chosenId, setChosenId] = useState(null);
@@ -28,10 +33,16 @@ export default function WandDialog({ onChoose, onClose }) {
     onChoose(selected);
   }
 
+  function tryWand(wand) {
+    setSelected(wand.id);
+    playSfx(TRIAL_SFX[wand.trial]);
+    onTry?.(wand.id);
+  }
+
   return (
     <dialog
       ref={dialogRef}
-      className="paper-dialog"
+      className="paper-dialog is-aside"
       aria-labelledby="wand-title"
       onClose={onClose}
     >
@@ -73,7 +84,7 @@ export default function WandDialog({ onChoose, onClose }) {
                     name="varita"
                     value={wand.id}
                     checked={selected === wand.id}
-                    onChange={() => setSelected(wand.id)}
+                    onChange={() => tryWand(wand)}
                   />
                   <span>
                     <b>{wandName(wand)}</b>
