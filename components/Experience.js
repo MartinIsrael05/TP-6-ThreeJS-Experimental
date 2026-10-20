@@ -8,7 +8,6 @@ import {
   itemTypeLabels,
   persistenceLabels,
   places,
-  prologue,
 } from "@/data/places";
 import { spells } from "@/data/spells";
 import { getWand, wandName } from "@/data/wands";
@@ -16,6 +15,7 @@ import { useProgress } from "@/hooks/useProgress";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
 import AuthPanel from "@/components/AuthPanel";
+import Prologue from "@/components/Prologue";
 import SortingHatDialog from "@/components/SortingHatDialog";
 import SoundToggle from "@/components/SoundToggle";
 import ThreeArtifact from "@/components/ThreeArtifact";
@@ -44,6 +44,7 @@ export default function Experience({ initialPlaceId }) {
   const [castingPlaceId, setCastingPlaceId] = useState(null);
   const [wandTrial, setWandTrial] = useState(null);
   const castTimer = useRef(0);
+  const finaleTimer = useRef(0);
   const {
     authError,
     authLoading,
@@ -101,6 +102,7 @@ export default function Experience({ initialPlaceId }) {
 
   // Si se cambia de lugar con un hechizo en el aire, el hechizo se pierde.
   useEffect(() => () => window.clearTimeout(castTimer.current), [place.id]);
+  useEffect(() => () => window.clearTimeout(finaleTimer.current), []);
 
   // El primer gesto en la página desbloquea el audio. Cada lugar tiene su
   // ambiente; con el final abierto suena la caja de música en mayor.
@@ -133,7 +135,15 @@ export default function Experience({ initialPlaceId }) {
     collect(itemId);
     setFlash(true);
     playSfx("page");
-    if (completesExperience) setCompletionOpen(true);
+    if (completesExperience) {
+      // Primero se ve abrirse la puerta; después se cierra el diario y entra
+      // la fanfarria de la casa, cuando las tapas terminan de juntarse.
+      const finalHouse = houseId;
+      finaleTimer.current = window.setTimeout(() => {
+        setCompletionOpen(true);
+        finaleTimer.current = window.setTimeout(() => playSfx("fanfare", { house: finalHouse }), 1400);
+      }, 2200);
+    }
   }
 
   function handleCollect() {
@@ -210,16 +220,7 @@ export default function Experience({ initialPlaceId }) {
       <div className="candlelight" aria-hidden="true" />
       <WandCursor />
 
-      {!entered && (
-        <section className="intro" aria-labelledby="intro-title">
-          <h1 id="intro-title">{prologue.title}</h1>
-          <p className="intro-copy">{prologue.copy}</p>
-          <button className="enter-button" onClick={enterExperience}>
-            {prologue.cta}
-          </button>
-          <p className="intro-note">{prologue.note}</p>
-        </section>
-      )}
+      {!entered && <Prologue onEnter={enterExperience} />}
 
       <header className="topbar">
         <button className="brand" onClick={returnToStart}>
@@ -250,94 +251,98 @@ export default function Experience({ initialPlaceId }) {
         </div>
       </header>
 
-      <section className="place-layout">
-        <nav className="place-nav" aria-label="Lugares del castillo">
-          <ol>
-            {places.map((entry, index) => {
-              const unlocked = canOpen(index);
-              const done = collected.has(entry.item.id);
-              const state = done ? "done" : unlocked ? "open" : "locked";
-              const stateText = done
-                ? ", completado"
-                : unlocked
-                  ? ""
-                  : ", bloqueado";
-              return (
-                <li key={entry.id}>
-                  <button
-                    className={index === activeIndex ? "active" : ""}
-                    data-state={state}
-                    disabled={!unlocked}
-                    onClick={() => openPlace(entry.id)}
-                    aria-current={index === activeIndex ? "page" : undefined}
-                    aria-label={`${entry.number}. ${entry.label}${stateText}`}
-                  >
-                    <b>{entry.number}</b>
-                    <span>{entry.label}</span>
-                    <i aria-hidden="true" />
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-          <button className="reset-progress" onClick={handleReset}>
-            Empezar de nuevo
-          </button>
-        </nav>
+      {entered && (
+        <>
+        <section className="place-layout">
+          <nav className="place-nav" aria-label="Lugares del castillo">
+            <ol>
+              {places.map((entry, index) => {
+                const unlocked = canOpen(index);
+                const done = collected.has(entry.item.id);
+                const state = done ? "done" : unlocked ? "open" : "locked";
+                const stateText = done
+                  ? ", completado"
+                  : unlocked
+                    ? ""
+                    : ", bloqueado";
+                return (
+                  <li key={entry.id}>
+                    <button
+                      className={index === activeIndex ? "active" : ""}
+                      data-state={state}
+                      disabled={!unlocked}
+                      onClick={() => openPlace(entry.id)}
+                      aria-current={index === activeIndex ? "page" : undefined}
+                      aria-label={`${entry.number}. ${entry.label}${stateText}`}
+                    >
+                      <b>{entry.number}</b>
+                      <span>{entry.label}</span>
+                      <i aria-hidden="true" />
+                    </button>
+                  </li>
+                );
+              })}
+            </ol>
+            <button className="reset-progress" onClick={handleReset}>
+              Empezar de nuevo
+            </button>
+          </nav>
 
-        <article className="narrative">
-          <p className="place-eyebrow">{place.eyebrow}</p>
-          <h2>{place.title}</h2>
-          <p className="place-copy">{place.copy}</p>
+          <article className="narrative">
+            <p className="place-eyebrow">{place.eyebrow}</p>
+            <h2>{place.title}</h2>
+            <p className="place-copy">{place.copy}</p>
 
-          <div
-            className={`diary-page ${isCollected ? "found" : ""}`}
-            aria-live="polite"
-          >
-            <small>{itemTypeLabels[place.item.type]}</small>
-            <strong>
-              {isCollected ? place.item.label : "Todavía en blanco"}
-              {isCollected && itemDetail && <span>{itemDetail}</span>}
-            </strong>
+            <div
+              className={`diary-page ${isCollected ? "found" : ""}`}
+              aria-live="polite"
+            >
+              <small>{itemTypeLabels[place.item.type]}</small>
+              <strong>
+                {isCollected ? place.item.label : "Todavía en blanco"}
+                {isCollected && itemDetail && <span>{itemDetail}</span>}
+              </strong>
+            </div>
+          </article>
+
+          <div className="artifact-panel">
+            <ThreeArtifact
+              key={place.id}
+              place={place}
+              discovered={isCollected}
+              casting={casting}
+              onDiscover={handleCollect}
+              onSolve={handleSolve}
+              house={houseId}
+              trial={wandTrial}
+            />
+            <div className="artifact-caption">
+              <p>
+                {isCollected
+                  ? nextPlace
+                    ? `Listo. El diario ya marca el camino a ${nextPlace.label}.`
+                    : "Listo. No queda ningún lugar por recorrer."
+                  : place.instruction}
+              </p>
+              {!isCollected && (
+                <button onClick={handleCollect} disabled={casting}>
+                  {alternativeLabel}
+                </button>
+              )}
+              {isCollected && nextPlace && (
+                <button onClick={() => openPlace(nextPlace.id)}>
+                  Ir a {nextPlace.label}
+                </button>
+              )}
+            </div>
           </div>
-        </article>
+        </section>
 
-        <div className="artifact-panel">
-          <ThreeArtifact
-            key={place.id}
-            place={place}
-            discovered={isCollected}
-            casting={casting}
-            onDiscover={handleCollect}
-            onSolve={handleSolve}
-            house={houseId}
-            trial={wandTrial}
-          />
-          <div className="artifact-caption">
-            <p>
-              {isCollected
-                ? nextPlace
-                  ? `Listo. El diario ya marca el camino a ${nextPlace.label}.`
-                  : "Listo. No queda ningún lugar por recorrer."
-                : place.instruction}
-            </p>
-            {!isCollected && (
-              <button onClick={handleCollect} disabled={casting}>
-                {alternativeLabel}
-              </button>
-            )}
-            {isCollected && nextPlace && (
-              <button onClick={() => openPlace(nextPlace.id)}>
-                Ir a {nextPlace.label}
-              </button>
-            )}
-          </div>
-        </div>
-      </section>
-
-      <footer className="footer-bar">
-        <span>Programación Multimedial III, UMAI</span>
-      </footer>
+        <footer className="footer-bar">
+          <span>Programación Multimedial III, UMAI</span>
+        </footer>
+        </>
+      )}
 
       {completionOpen && (
         <section
@@ -345,6 +350,10 @@ export default function Experience({ initialPlaceId }) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="completion-title"
+          style={{
+            "--casa": endingHouse?.color ?? "var(--dorado)",
+            "--casa-clara": endingHouse?.accent ?? "var(--dorado-claro)",
+          }}
         >
           <button
             className="close"
@@ -353,9 +362,21 @@ export default function Experience({ initialPlaceId }) {
           >
             ×
           </button>
+          {/* El diario se cierra y la tinta se apaga, en el color de la casa. */}
+          <div className="completion-diary" aria-hidden="true">
+            <span className="diary-cover is-left" />
+            <span className="diary-cover is-right" />
+            <span className="diary-glow" />
+          </div>
           <p className="completion-eyebrow">{finale.eyebrow}</p>
           <h2 id="completion-title">{finale.title}</h2>
-          <p>{finale.copy}</p>
+          <p className="completion-copy">{finale.copy}</p>
+          <div className="completion-actions">
+            <button onClick={() => setCompletionOpen(false)}>
+              Seguir en el castillo
+            </button>
+            <button onClick={handleReset}>Empezar de nuevo</button>
+          </div>
         </section>
       )}
 

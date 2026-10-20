@@ -2,14 +2,23 @@
 // Cada lugar tiene un ítem coleccionable: conseguirlo desbloquea el siguiente.
 // action (opcional) es el texto del botón alternativo a la escena 3D: abre un
 // diálogo (Sombrero, varitas) o resuelve el lugar. Si falta, el botón lanza
-// el hechizo de data/spells.js que se usa en ese lugar. Los ids de lugares e ítems están repetidos en
-// firestore.rules (validPlaces, validItems): si cambian acá, cambian allá.
+// el hechizo de data/spells.js que se usa en ese lugar. Los ids de lugares e
+// ítems están repetidos en firestore.rules (validPlaces, validItems): si
+// cambian acá, cambian allá.
 
 export const siteName = "Las páginas del diario";
 
+// El prólogo se recorre con scroll: el bote cruza el lago mientras aparecen
+// los textos de beats, uno por tramo.
 export const prologue = {
   title: "Las páginas del diario",
-  copy: "Recién llegaste a Hogwarts y ya encontraste algo que no tendrías que tener: el diario de Tom Riddle, con tres páginas arrancadas. Seguilas por el castillo y llegá a la Cámara de los Secretos antes de que vuelva a abrirse.",
+  hint: "Deslizá para cruzar el lago",
+  skip: "Saltar la llegada",
+  beats: [
+    "Los botes salen solos de la orilla. Nadie rema, nadie habla. Del otro lado del lago, el castillo te mira con todas sus ventanas.",
+    "Recién llegaste a Hogwarts y ya encontraste algo que no tendrías que tener: el diario de Tom Riddle, con tres páginas arrancadas.",
+    "Seguilas por el castillo y llegá a la Cámara de los Secretos antes de que vuelva a abrirse.",
+  ],
   cta: "Abrir el diario",
   note: "Mejor con auriculares y la luz baja.",
 };

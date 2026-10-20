@@ -1,31 +1,9 @@
 import * as THREE from "three";
 import { houses } from "@/data/houses";
+import { createNightSky } from "@/lib/three/nightSky";
 
 // Campo de Quidditch de noche: cielo, estrellas, césped a franjas, los tres
 // aros del fondo y las torres de las tribunas con los colores de las casas.
-
-const skyVertex = /* glsl */ `
-  varying vec3 vDirection;
-  void main() {
-    vDirection = normalize(position);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-  }
-`;
-
-// Degradé del horizonte al cenit con un resplandor del lado de la luna.
-const skyFragment = /* glsl */ `
-  uniform vec3 uHorizon;
-  uniform vec3 uZenith;
-  uniform vec3 uMoonDirection;
-  varying vec3 vDirection;
-  void main() {
-    float height = clamp(vDirection.y, 0.0, 1.0);
-    vec3 color = mix(uHorizon, uZenith, pow(height, 0.6));
-    float moonGlow = pow(max(dot(vDirection, uMoonDirection), 0.0), 24.0);
-    color += vec3(0.5, 0.6, 0.8) * moonGlow * 0.6;
-    gl_FragColor = vec4(color, 1.0);
-  }
-`;
 
 function grassTexture() {
   const canvas = document.createElement("canvas");
@@ -54,39 +32,7 @@ export const MOON_DIRECTION = new THREE.Vector3(-0.5, 0.45, -0.75).normalize();
 export function buildPitch() {
   const group = new THREE.Group();
 
-  const sky = new THREE.Mesh(
-    new THREE.SphereGeometry(90, 32, 16),
-    new THREE.ShaderMaterial({
-      uniforms: {
-        uHorizon: { value: new THREE.Color("#1c2944") },
-        uZenith: { value: new THREE.Color("#04060d") },
-        uMoonDirection: { value: MOON_DIRECTION },
-      },
-      vertexShader: skyVertex,
-      fragmentShader: skyFragment,
-      side: THREE.BackSide,
-      depthWrite: false,
-      fog: false,
-    }),
-  );
-  group.add(sky);
-
-  const moon = new THREE.Mesh(new THREE.CircleGeometry(3, 32), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.6, 1.5), fog: false }));
-  moon.position.copy(MOON_DIRECTION).multiplyScalar(85);
-  moon.lookAt(0, 0, 0);
-  group.add(moon);
-
-  // Estrellas en la mitad de arriba del cielo.
-  const starPositions = new Float32Array(700 * 3);
-  for (let index = 0; index < 700; index += 1) {
-    const theta = Math.random() * Math.PI * 2;
-    const y = 0.08 + Math.random() * 0.92;
-    const r = Math.sqrt(1 - y * y);
-    starPositions.set([Math.cos(theta) * r * 80, y * 80, Math.sin(theta) * r * 80], index * 3);
-  }
-  const starGeometry = new THREE.BufferGeometry();
-  starGeometry.setAttribute("position", new THREE.BufferAttribute(starPositions, 3));
-  group.add(new THREE.Points(starGeometry, new THREE.PointsMaterial({ color: "#dfe6ff", size: 0.25, fog: false })));
+  group.add(createNightSky({ moonDirection: MOON_DIRECTION }));
 
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(70, 110), new THREE.MeshStandardMaterial({ map: grassTexture(), roughness: 1 }));
   ground.rotation.x = -Math.PI / 2;
