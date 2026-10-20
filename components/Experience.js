@@ -12,12 +12,13 @@ import {
 import { spells } from "@/data/spells";
 import { getWand, wandName } from "@/data/wands";
 import { useProgress } from "@/hooks/useProgress";
+import { useSorting } from "@/hooks/useSorting";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
 import AuthPanel from "@/components/AuthPanel";
 import HandControl from "@/components/HandControl";
 import Prologue from "@/components/Prologue";
-import SortingHatDialog from "@/components/SortingHatDialog";
+import SortingHud from "@/components/SortingHud";
 import SoundToggle from "@/components/SoundToggle";
 import SpellCanvas from "@/components/SpellCanvas";
 import SpellGlyph from "@/components/SpellGlyph";
@@ -26,7 +27,7 @@ import WandCursor from "@/components/WandCursor";
 import WandDialog from "@/components/WandDialog";
 
 // Lugares que se resuelven con un diálogo HTML en lugar de marcarse directo.
-const DIALOG_BY_ITEM = { sombrero: "sorting", varita: "wand" };
+const DIALOG_BY_ITEM = { varita: "wand" };
 
 // Hechizo que se usa en cada lugar. Se lanza dibujándolo en la escena (la
 // escena reacciona y el juego sigue) o con el botón alternativo: en ese caso
@@ -78,6 +79,7 @@ export default function Experience({ initialPlaceId }) {
     submitEmail,
     wand: wandId,
   } = useProgress();
+  const sorting = useSorting({ onSorted: chooseHouse });
   const place = places[activeIndex];
   const nextPlace = places[activeIndex + 1];
   const isCollected = collected.has(place.item.id);
@@ -88,7 +90,9 @@ export default function Experience({ initialPlaceId }) {
   const hintHere = hint?.placeId === place.id ? hint.text : null;
   // El lugar espera que dibujes su hechizo: una vez (once) o cuando quieras.
   const awaitingSpell = Boolean(spell) && !isCollected && !casting && (!spell.once || !castHere);
-  const usesDialog = Boolean(DIALOG_BY_ITEM[place.item.id]);
+  // Lugares que empiezan con un botón (ponerse el Sombrero, probar varitas)
+  // en lugar de resolverse con un hechizo.
+  const usesDialog = Boolean(DIALOG_BY_ITEM[place.item.id]) || place.item.id === "sombrero";
   const alternativeLabel =
     place.action ?? (spell ? `Lanzar ${spell.incantation}` : "Resolver sin la escena 3D");
   const collectedCount = places.filter((entry) =>
@@ -172,9 +176,25 @@ export default function Experience({ initialPlaceId }) {
 
   function handleCollect() {
     if (isCollected || casting) return;
+    if (place.item.id === "sombrero") {
+      if (!sorting.phase) startSorting();
+      return;
+    }
     const dialogId = DIALOG_BY_ITEM[place.item.id];
     if (dialogId) setDialog(dialogId);
     else castSpell();
+  }
+
+  // El Sombrero empieza a preguntar: el relato se pliega para dejar ver los
+  // pergaminos.
+  function startSorting() {
+    setStoryClosedFor(place.id);
+    sorting.start();
+  }
+
+  function finishSorting() {
+    sorting.close();
+    completeItem("sombrero");
   }
 
   // El botón alternativo: suena el hechizo, la escena lo anima (lee casting)
@@ -309,6 +329,9 @@ export default function Experience({ initialPlaceId }) {
               house={houseId}
               trial={wandTrial}
               spellCast={castHere}
+              sortingQuestion={sorting.question}
+              sortingPhase={sorting.phase}
+              onPickAnswer={sorting.pick}
             />
             <SpellCanvas
               spell={awaitingSpell ? spell : null}
@@ -368,6 +391,10 @@ export default function Experience({ initialPlaceId }) {
             </button>
           </article>
 
+          {sorting.phase && place.item.id === "sombrero" && (
+            <SortingHud sorting={sorting} house={house} onFinish={finishSorting} />
+          )}
+
           {/* Abajo: la página del diario a la izquierda y la instrucción a la
               derecha (en el celular, una arriba de la otra). */}
           <div className="hud-bottom">
@@ -408,7 +435,7 @@ export default function Experience({ initialPlaceId }) {
                 {hintHere}
               </p>
             )}
-            {!isCollected && usesDialog && (
+            {!isCollected && usesDialog && !sorting.phase && (
               <button onClick={handleCollect}>{alternativeLabel}</button>
             )}
             {/* Alternativa accesible a la escena 3D: resuelve el lugar con un botón. */}
@@ -464,17 +491,6 @@ export default function Experience({ initialPlaceId }) {
             <button onClick={handleReset}>Empezar de nuevo</button>
           </div>
         </section>
-      )}
-
-      {dialog === "sorting" && (
-        <SortingHatDialog
-          onSorted={chooseHouse}
-          onDone={() => {
-            setDialog(null);
-            completeItem("sombrero");
-          }}
-          onClose={() => setDialog(null)}
-        />
       )}
 
       {dialog === "wand" && (

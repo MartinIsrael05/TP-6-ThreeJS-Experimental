@@ -4,6 +4,7 @@ import { useRef } from "react";
 import * as THREE from "three";
 import { getHouse, houses } from "@/data/houses";
 import { useThreeScene } from "@/hooks/useThreeScene";
+import { createAnswerCards } from "@/components/scenes/great-hall/answerCards";
 import { createCandles } from "@/components/scenes/great-hall/candles";
 import { createDust } from "@/components/scenes/great-hall/dust";
 import { createEnchantedCeiling } from "@/components/scenes/great-hall/enchantedCeiling";
@@ -91,6 +92,7 @@ function setupGreatHall(ctx) {
   const eased = new THREE.Vector2();
   const raycaster = new THREE.Raycaster();
   let hovered = false;
+  let hoveredCard = -1;
 
   function readPointer(event) {
     const rect = renderer.domElement.getBoundingClientRect();
@@ -100,31 +102,60 @@ function setupGreatHall(ctx) {
     );
   }
 
-  // El Sombrero solo responde mientras el ítem no está conseguido.
+  // El Sombrero solo responde mientras el ítem no está conseguido y
+  // todavía no empezó a preguntar.
   function pointsAtHat() {
-    if (props.current.discovered) return false;
+    if (props.current.discovered || props.current.sortingPhase) return false;
     raycaster.setFromCamera(pointer, camera);
     return raycaster.intersectObject(sortingHat.hitArea).length > 0;
+  }
+
+  // Las respuestas del Sombrero flotan entre la cámara y el Sombrero.
+  const hatTip = sortingHat.group.position.clone().add(new THREE.Vector3(0, 1.4, 0));
+  const cards = createAnswerCards({ hatPosition: hatTip });
+  scene.add(cards.group);
+  let shownQuestion = null;
+
+  function cardUnderPointer() {
+    if (props.current.sortingPhase !== "asking" || cards.isBusy()) return -1;
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObjects(cards.meshes, false)[0];
+    return hit && hit.object.material.opacity > 0.5 ? hit.object.userData.card : -1;
   }
 
   listen(renderer.domElement, "pointermove", (event) => {
     readPointer(event);
     hovered = pointsAtHat();
-    renderer.domElement.style.cursor = hovered ? "pointer" : "";
+    hoveredCard = cardUnderPointer();
+    renderer.domElement.style.cursor = hovered || hoveredCard >= 0 ? "pointer" : "";
   });
   listen(renderer.domElement, "pointerleave", () => {
     pointer.set(0, 0);
     hovered = false;
+    hoveredCard = -1;
   });
-  // Abre el mismo diálogo que el botón "Ponerme el Sombrero" de Experience.
-  // Chispas que salen del Sombrero al tocarlo y cuando anuncia la casa.
+  // Chispas que salen del Sombrero al tocarlo, con cada respuesta y cuando
+  // anuncia la casa.
   const sparks = createSparks({ max: 300, size: 0.12 });
   scene.add(sparks.points);
-  const hatTip = sortingHat.group.position.clone().add(new THREE.Vector3(0, 1.4, 0));
-  let wasDiscovered = props.current.discovered;
+  let shownPhase = props.current.sortingPhase;
 
+  function pickCard(index) {
+    const answerId = cards.pick(index);
+    if (!answerId) return;
+    hoveredCard = -1;
+    props.current.onPickAnswer?.(answerId);
+  }
+
+  // Tocar el Sombrero empieza la selección (lo mismo que el botón
+  // "Ponerme el Sombrero"); tocar un pergamino lo elige.
   listen(renderer.domElement, "click", (event) => {
     readPointer(event);
+    const card = cardUnderPointer();
+    if (card >= 0) {
+      pickCard(card);
+      return;
+    }
     if (!pointsAtHat()) return;
     sparks.emit(hatTip, { count: 50, speed: 2.2 });
     playSfx("spell");
@@ -154,6 +185,9 @@ function setupGreatHall(ctx) {
 
   return {
     composer,
+    resize(width, height) {
+      cards.layout(width / height);
+    },
     update({ elapsed, delta, reducedMotion }) {
       if (!reducedMotion) {
         eased.lerp(pointer, 1 - Math.exp(-delta * 3));
@@ -166,12 +200,24 @@ function setupGreatHall(ctx) {
       }
 
       if (props.current.house !== appliedHouse) applyHouse(props.current.house ?? null);
-      // Al cerrar el diálogo con la casa elegida, el Sombrero festeja con
-      // chispas del color de la casa. Al cargar ya resuelto no festeja.
-      if (props.current.discovered && wasDiscovered === false && appliedHouse) {
-        sparks.emit(hatTip, { count: 160, speed: 4, color: getHouse(appliedHouse).accent, lifetime: 1.6, direction: UP });
+      // Pregunta nueva: los pergaminos cambian cuando termina de volar el
+      // anterior. Cuando el Sombrero anuncia la casa, festeja con chispas
+      // de su color.
+      const { sortingQuestion, sortingPhase } = props.current;
+      if ((sortingQuestion?.id ?? null) !== shownQuestion && !cards.isBusy()) {
+        shownQuestion = sortingQuestion?.id ?? null;
+        cards.setQuestion(sortingQuestion ?? null);
       }
-      wasDiscovered = props.current.discovered;
+      if (sortingPhase !== shownPhase) {
+        if (sortingPhase === "revealed" && appliedHouse) {
+          sparks.emit(hatTip, { count: 160, speed: 4, color: getHouse(appliedHouse).accent, lifetime: 1.6, direction: UP });
+        }
+        shownPhase = sortingPhase;
+      }
+      const ready = cards.update({ elapsed, delta: reducedMotion ? 1 / 30 : delta, hovered: hoveredCard });
+      if (ready >= 0) pickCard(ready);
+      // Mientras piensa, el Sombrero se sacude.
+      sortingHat.group.rotation.z = sortingPhase === "thinking" && !reducedMotion ? Math.sin(elapsed * 14) * 0.06 : 0;
       const blend = delta > 0 ? 1 - Math.exp(-delta * 2.5) : 1;
       bannerMaterials.forEach((material, index) => material.color.lerp(bannerTargets[index], blend));
 
@@ -179,7 +225,7 @@ function setupGreatHall(ctx) {
       candles.update(elapsed, delta);
       dust.update(elapsed, delta);
       sparks.update(reducedMotion ? 1 : delta);
-      sortingHat.update({ elapsed, delta, highlight: hovered ? 1 : 0, idle: !props.current.discovered });
+      sortingHat.update({ elapsed, delta, highlight: hovered || sortingPhase === "thinking" ? 1 : 0, idle: !props.current.discovered });
 
       // Titileo de las luces: dos senos desfasados por luz, sin azar por
       // frame para que no parpadee.
@@ -191,9 +237,14 @@ function setupGreatHall(ctx) {
   };
 }
 
-export default function GreatHall({ place, discovered, onDiscover, house }) {
+export default function GreatHall({ place, discovered, onDiscover, house, sortingQuestion, sortingPhase, onPickAnswer }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupGreatHall, { place, discovered, onDiscover, house }, place.id);
+  useThreeScene(
+    mountRef,
+    setupGreatHall,
+    { place, discovered, onDiscover, house, sortingQuestion, sortingPhase, onPickAnswer },
+    place.id,
+  );
 
   return (
     <div
