@@ -3,14 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { getHouse } from "@/data/houses";
 import { sortIntoHouse, sorting } from "@/data/sorting";
+import { playSfx } from "@/lib/audio/sfx";
+
+// Lo que tarda el Sombrero en decidir: dura lo mismo que el redoble.
+const THINKING_MS = 1700;
 
 // onSorted guarda la casa apenas se calcula; onDone se llama al cerrar el
 // diálogo con la casa ya asignada, y onClose si se cierra antes de terminar.
+// La casa se guarda enseguida y se anuncia después del redoble.
 export default function SortingHatDialog({ onSorted, onDone, onClose }) {
   const dialogRef = useRef(null);
   const [answers, setAnswers] = useState([]);
   const [selected, setSelected] = useState("");
   const [houseId, setHouseId] = useState(null);
+  const [revealed, setRevealed] = useState(false);
   const total = sorting.questions.length;
   const question = sorting.questions[answers.length];
   const house = houseId ? getHouse(houseId) : null;
@@ -19,6 +25,16 @@ export default function SortingHatDialog({ onSorted, onDone, onClose }) {
     const dialog = dialogRef.current;
     if (!dialog.open) dialog.showModal();
   }, []);
+
+  useEffect(() => {
+    if (!houseId) return undefined;
+    playSfx("drumroll");
+    const timeout = window.setTimeout(() => {
+      setRevealed(true);
+      playSfx("fanfare", { house: houseId });
+    }, THINKING_MS);
+    return () => window.clearTimeout(timeout);
+  }, [houseId]);
 
   function closeDialog() {
     dialogRef.current.close();
@@ -37,6 +53,7 @@ export default function SortingHatDialog({ onSorted, onDone, onClose }) {
     const nextAnswers = [...answers, answer.house];
     setAnswers(nextAnswers);
     setSelected("");
+    playSfx("tap");
 
     if (nextAnswers.length === total) {
       const sortedHouse = sortIntoHouse(nextAnswers);
@@ -58,8 +75,12 @@ export default function SortingHatDialog({ onSorted, onDone, onClose }) {
       <p className="dialog-eyebrow">Gran Comedor</p>
       <h2 id="sorting-title">{sorting.title}</h2>
 
-      {house ? (
-        <div className="house-result" style={{ "--house-color": house.color }}>
+      {house && !revealed ? (
+        <p className="hat-thinking" role="status">
+          {sorting.thinking}
+        </p>
+      ) : house ? (
+        <div className="house-result is-revealed" style={{ "--house-color": house.color }}>
           <p>{sorting.result}</p>
           <p className="house-name">{house.name}</p>
           <p>{house.trait}</p>

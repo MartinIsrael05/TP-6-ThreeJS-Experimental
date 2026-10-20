@@ -27,9 +27,12 @@ Cada recurso que se suma al repo se anota acá en el mismo Pull Request.
 
 ## Audio
 
+No hay archivos de sonido: todo el audio se sintetiza en el navegador con Web Audio API, con código propio en `lib/audio/`.
+
 | Recurso | Autor | Fuente | Licencia | Uso en el sitio |
 | --- | --- | --- | --- | --- |
-| | | | | |
+| Ambientes por lugar, efectos y fanfarrias de las casas | Equipo del TP | `lib/audio/ambiences.js`, `lib/audio/sfx.js` | Propio | Fondo de cada lugar y respuesta a las interacciones |
+| Canción de cuna en Re menor (caja de música) | Equipo del TP | `lib/audio/ambiences.js` | Propio, melodía original | Prólogo y final |
 
 ## Código y herramientas
 

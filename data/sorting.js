@@ -4,6 +4,7 @@
 export const sorting = {
   title: "El Sombrero Seleccionador",
   intro: "El Sombrero te queda grande y huele a polvo. Respondé sin pensar demasiado: él ya está leyendo lo que no decís.",
+  thinking: "Mmm... Veo mucho acá adentro. Dejame pensar.",
   result: "El Sombrero lo dice en voz alta para todo el comedor:",
   confirm: "Ir a mi mesa",
   questions: [

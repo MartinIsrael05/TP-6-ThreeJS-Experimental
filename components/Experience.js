@@ -13,8 +13,11 @@ import {
 import { spells } from "@/data/spells";
 import { getWand, wandName } from "@/data/wands";
 import { useProgress } from "@/hooks/useProgress";
+import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
+import { playSfx } from "@/lib/audio/sfx";
 import AuthPanel from "@/components/AuthPanel";
 import SortingHatDialog from "@/components/SortingHatDialog";
+import SoundToggle from "@/components/SoundToggle";
 import ThreeArtifact from "@/components/ThreeArtifact";
 import WandDialog from "@/components/WandDialog";
 
@@ -83,6 +86,14 @@ export default function Experience({ initialPlaceId }) {
     if (ready && initialPlaceId) setCurrentPlace(initialPlaceId);
   }, [ready, initialPlaceId, setCurrentPlace]);
 
+  // El primer gesto en la página desbloquea el audio. Cada lugar tiene su
+  // ambiente; con el final abierto suena la caja de música en mayor.
+  useEffect(() => installAudioUnlock(), []);
+
+  useEffect(() => {
+    setAmbience(completionOpen ? "final" : entered ? place.id : "prologo");
+  }, [completionOpen, entered, place.id]);
+
   // La casa pisa los acentos dorados de todo el sitio (variables de :root).
   useEffect(() => {
     const root = document.documentElement;
@@ -105,6 +116,7 @@ export default function Experience({ initialPlaceId }) {
 
     collect(itemId);
     setFlash(true);
+    playSfx("page");
     if (completesExperience) setCompletionOpen(true);
   }
 
@@ -126,10 +138,12 @@ export default function Experience({ initialPlaceId }) {
   }
 
   function enterExperience() {
+    playSfx("spell");
     router.push(`/castillo/${places[0].id}`);
   }
 
   function openPlace(placeId) {
+    playSfx("whoosh");
     router.push(`/castillo/${placeId}`);
   }
 
@@ -178,6 +192,7 @@ export default function Experience({ initialPlaceId }) {
           Hogwarts
         </button>
         <div className="status">
+          <SoundToggle />
           <span
             className={`persistence is-${persistence}`}
             role="status"
