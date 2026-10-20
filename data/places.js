@@ -23,6 +23,21 @@ export const prologue = {
   note: "Mejor con auriculares y la luz baja.",
 };
 
+// Textos del panel de pársel en la Cámara. status va por estado del juego.
+export const parsel = {
+  title: "Pársel",
+  status: {
+    wait: "La puerta está por hablar.",
+    play: "La puerta sisea. Prestá atención a cuánto dura cada siseo.",
+    input: "Tu turno: siseá «sssss», corto o largo, en el mismo orden.",
+    wrong: "La puerta no te entendió. Escuchala de nuevo.",
+  },
+  mic: "Sisear al micrófono",
+  micError: "Sin micrófono: usá el botón",
+  hold: "Mantené para sisear",
+  replay: "Volver a escuchar",
+};
+
 export const ending = {
   eyebrow: "Final sin casa",
   title: "Cerraste el diario antes que él.",
@@ -115,7 +130,7 @@ export const places = [
     eyebrow: "Debajo del castillo",
     title: "La puerta solo se abre si le hablás como a una serpiente.",
     copy: "Con las tres páginas juntas, el diario dibuja un camino que baja más allá de las mazmorras. Al final hay una puerta redonda con serpientes talladas. Si entrás antes que él, el diario se cierra para siempre.",
-    instruction: "La puerta sisea una secuencia: repetila tocando las serpientes en el mismo orden. Tocá el centro de la puerta para volver a escucharla.",
+    instruction: "La puerta sisea un patrón de siseos cortos y largos. Repetilo siseando de verdad: «sssss» al micrófono, o manteniendo apretada la barra espaciadora.",
     action: "Hablar en pársel",
     color: "#1f6b4f",
     accent: "#7fd4a8",

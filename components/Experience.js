@@ -19,6 +19,7 @@ import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
 import AuthPanel from "@/components/AuthPanel";
 import HandControl from "@/components/HandControl";
+import ParselHud from "@/components/ParselHud";
 import Prologue from "@/components/Prologue";
 import SortingHud from "@/components/SortingHud";
 import SoundToggle from "@/components/SoundToggle";
@@ -57,6 +58,11 @@ export default function Experience({ initialPlaceId }) {
   // salió. Llevan el lugar para no arrastrarse al siguiente.
   const [drawnSpell, setDrawnSpell] = useState(null);
   const [hint, setHint] = useState(null);
+  // Pársel: si estás siseando (lo escribe el panel, lo lee la escena en cada
+  // cuadro), en qué va el juego (lo cuenta la escena) y el pedido de repetir.
+  const hissRef = useRef({ active: false });
+  const [parselState, setParselState] = useState(null);
+  const [replayAt, setReplayAt] = useState(0);
   const castTimer = useRef(0);
   const finaleTimer = useRef(0);
   const {
@@ -349,6 +355,9 @@ export default function Experience({ initialPlaceId }) {
               sortingQuestion={sorting.question}
               sortingPhase={sorting.phase}
               onPickAnswer={sorting.pick}
+              hissRef={hissRef}
+              replayAt={replayAt}
+              onParselState={setParselState}
             />
             <SpellCanvas
               spell={awaitingSpell ? spell : null}
@@ -412,6 +421,9 @@ export default function Experience({ initialPlaceId }) {
             <SortingHud sorting={sorting} house={house} onFinish={finishSorting} />
           )}
           {place.item.id === "varita" && <WandHud shop={shop} />}
+          {place.id === "camara" && !isCollected && !casting && (
+            <ParselHud hissRef={hissRef} state={parselState} onReplay={() => setReplayAt(Date.now())} />
+          )}
 
           {/* Abajo: la página del diario a la izquierda y la instrucción a la
               derecha (en el celular, una arriba de la otra). */}

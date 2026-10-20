@@ -13,9 +13,16 @@ import { createSparks } from "@/lib/three/sparks";
 const CAMERA_POSITION = new THREE.Vector3(0, 2.4, 8.2);
 const DOOR_CENTER = new THREE.Vector3(0, 2.7, 0);
 const CAMERA_TARGET = new THREE.Vector3(0, 2.4, 0);
-// Largo de la secuencia en cada ronda: primero tres siseos, después cinco.
-const ROUNDS = [3, 5];
-const NOTE_GAP = 0.75;
+// Pársel: la puerta sisea un patrón de siseos cortos ("c") y largos ("l")
+// y hay que repetirlo siseando. Primero tres siseos, después cuatro.
+const ROUND_LENGTHS = [3, 4];
+const SHORT_SECONDS = 0.35;
+const LONG_SECONDS = 1.05;
+const GAP_SECONDS = 0.45;
+// Desde cuántos segundos tu siseo cuenta como largo, y debajo de cuántos es
+// ruido y no cuenta.
+const LONG_FROM = 0.6;
+const MIN_HISS = 0.12;
 const OPEN_SECONDS = 2.6;
 const EYE_IDLE = new THREE.Color(0.2, 0.9, 0.4);
 const EYE_LIT = new THREE.Color(1.2, 4, 1.8);
@@ -96,29 +103,59 @@ function setupChamber(ctx) {
   glow.position.set(0, 2.7, 1);
   scene.add(glow);
 
-  // Juego de repetir: la puerta sisea una secuencia y hay que tocar las
-  // serpientes en el mismo orden.
-  const sequence = Array.from({ length: ROUNDS.at(-1) }, () => Math.floor(Math.random() * door.snakes.length));
+  // Patrones al azar, con por lo menos un siseo de cada largo.
+  function makePattern(length) {
+    let pattern = [];
+    while (!pattern.includes("c") || !pattern.includes("l")) {
+      pattern = Array.from({ length }, () => (Math.random() < 0.5 ? "c" : "l"));
+    }
+    return pattern;
+  }
+  const patterns = ROUND_LENGTHS.map(makePattern);
+  // Cuándo empieza cada siseo de la puerta, en segundos desde que arranca.
+  const schedules = patterns.map((pattern) => {
+    let at = 0;
+    return pattern.map((symbol) => {
+      const duration = symbol === "l" ? LONG_SECONDS : SHORT_SECONDS;
+      const entry = { at, duration };
+      at += duration + GAP_SECONDS;
+      return entry;
+    });
+  });
+
   let round = 0;
   let input = 0;
   let mode = props.current.discovered ? "open" : "wait"; // wait | play | input | wrong | opening | open
-  let clock = props.current.discovered ? OPEN_SECONDS : -1.4; // espera antes de la primera ronda
-  let playedNotes = 0;
+  let clock = props.current.discovered ? OPEN_SECONDS : -1.6; // espera antes de la primera ronda
+  let played = 0;
   let openedByPlaying = false;
+  // Segundos reales (no del reloj de la escena, que se frena si los cuadros
+  // tardan) en que empezó tu siseo, o -1.
+  let hissStart = -1;
+  let lastReplay = props.current.replayAt ?? 0;
   const flashes = door.snakes.map(() => 0);
+  const holds = door.snakes.map(() => 0);
+  const matched = door.snakes.map(() => false);
   let wrongFlash = 0;
 
-  function hiss(index) {
-    const snake = door.snakes[index];
-    flashes[index] = 1;
-    playSfx("hiss", { pitch: snake.pitch, pan: snake.pan });
+  // Le cuenta al panel en qué va el juego (solo cuando algo cambia).
+  let reported = "";
+  function report() {
+    const state = { mode, round, rounds: patterns.length, pattern: patterns[round] ?? patterns.at(-1), input };
+    const key = JSON.stringify(state);
+    if (key === reported) return;
+    reported = key;
+    props.current.onParselState?.(state);
   }
 
   function startRound() {
     mode = "play";
     clock = 0;
-    playedNotes = 0;
+    played = 0;
     input = 0;
+    hissStart = -1;
+    matched.fill(false);
+    report();
   }
 
   function open(byPlaying) {
@@ -127,44 +164,48 @@ function setupChamber(ctx) {
     openedByPlaying = byPlaying;
     playSfx("door");
     sparks.emit(DOOR_CENTER.clone().setZ(0.4), { count: 200, speed: 3, color: "#5dff9a", lifetime: 1.6 });
+    report();
   }
 
-  const pointer = createPointer(ctx);
-  const targets = [...door.snakes.map((snake) => snake.hitArea), door.center];
-
-  pointer.onMove(() => {
-    if (mode !== "input" && mode !== "play" && mode !== "wait") return pointer.setCursor("");
-    const hit = pointer.cast(targets, false)[0];
-    pointer.setCursor(hit ? "pointer" : "");
-  });
-
-  pointer.onTap(() => {
-    if (props.current.casting) return;
-    const hit = pointer.cast(targets, false)[0];
-    if (!hit) return;
-    if (hit.object === door.center) {
-      if (mode === "input" || mode === "wait") startRound();
-      return;
-    }
-    if (mode !== "input") return;
-    const index = hit.object.userData.snake;
-    hiss(index);
-    if (index !== sequence[input]) {
+  // Terminó tu siseo: se compara su largo con el de la puerta.
+  function judge(duration) {
+    if (duration < MIN_HISS) return;
+    const symbol = duration >= LONG_FROM ? "l" : "c";
+    const pattern = patterns[round];
+    if (symbol !== pattern[input]) {
       mode = "wrong";
       clock = 0;
       wrongFlash = 1;
       playSfx("error");
+      report();
       return;
     }
+    matched[input] = true;
+    flashes[input] = 1;
     input += 1;
-    if (input < ROUNDS[round]) return;
+    if (input < pattern.length) {
+      report();
+      return;
+    }
     round += 1;
     playSfx("align", { step: round * 3 });
-    if (round === ROUNDS.length) open(true);
+    if (round === patterns.length) open(true);
     else {
       mode = "wait";
       clock = -1.2;
+      report();
     }
+  }
+
+  // Tocar el centro de la puerta la hace sisear otra vez.
+  const pointer = createPointer(ctx);
+  pointer.onMove(() => {
+    const canReplay = mode === "input" || mode === "wait";
+    pointer.setCursor(canReplay && pointer.cast(door.center, false).length > 0 ? "pointer" : "");
+  });
+  pointer.onTap(() => {
+    if (props.current.casting || (mode !== "input" && mode !== "wait")) return;
+    if (pointer.cast(door.center, false).length > 0) startRound();
   });
 
   const composer = createComposer({
@@ -183,17 +224,51 @@ function setupChamber(ctx) {
 
       // Pársel desde el botón: la puerta se abre sin juego.
       if (props.current.casting && mode !== "opening" && mode !== "open") open(false);
-
-      if (mode === "wait" && clock >= 0) startRound();
-      if (mode === "play") {
-        const length = ROUNDS[round];
-        while (playedNotes < length && clock >= playedNotes * NOTE_GAP) {
-          hiss(sequence[playedNotes]);
-          playedNotes += 1;
-        }
-        if (clock >= length * NOTE_GAP) mode = "input";
+      // "Volver a escuchar" desde el panel.
+      const replayAt = props.current.replayAt ?? 0;
+      if (replayAt !== lastReplay) {
+        lastReplay = replayAt;
+        if (mode === "input" || mode === "wait") startRound();
       }
-      if (mode === "wrong" && clock > 1) startRound();
+      if (mode === "wait" && clock >= 0) startRound();
+
+      // La puerta sisea su patrón: cada serpiente se enciende mientras dura
+      // su siseo.
+      if (mode === "play") {
+        const schedule = schedules[round];
+        while (played < schedule.length && clock >= schedule[played].at) {
+          const { duration } = schedule[played];
+          const snake = door.snakes[played];
+          playSfx("parsel", { duration, pitch: snake.pitch, pan: snake.pan });
+          holds[played] = duration;
+          played += 1;
+        }
+        const last = schedule.at(-1);
+        // Un respiro antes de escucharte, para no tomar el eco de la puerta.
+        if (clock >= last.at + last.duration + 0.5) {
+          mode = "input";
+          report();
+        }
+      }
+      if (mode === "wrong" && clock > 1.4) startRound();
+
+      // Tu siseo (micrófono, barra espaciadora o botón): se mide cuánto dura.
+      const hissing = Boolean(props.current.hissRef?.current?.active);
+      const now = performance.now() / 1000;
+      if (mode === "input") {
+        if (hissing && hissStart < 0) hissStart = now;
+        // La serpiente que toca se va encendiendo mientras siseás.
+        if (hissing && input < door.snakes.length) {
+          flashes[input] = 0.35 + Math.min(1, (now - hissStart) / LONG_FROM) * 0.65;
+        }
+        if (!hissing && hissStart >= 0) {
+          const duration = now - hissStart;
+          hissStart = -1;
+          judge(duration);
+        }
+      } else {
+        hissStart = -1;
+      }
 
       if (mode === "opening") {
         const t = easeInOut(clock / OPEN_SECONDS);
@@ -219,7 +294,14 @@ function setupChamber(ctx) {
       // Ojos: se encienden con cada siseo; rojos si te equivocaste.
       wrongFlash = Math.max(0, wrongFlash - step * 1.4);
       door.snakes.forEach((snake, index) => {
-        flashes[index] = Math.max(0, flashes[index] - step * 2.2);
+        if (holds[index] > 0) {
+          holds[index] = Math.max(0, holds[index] - step);
+          flashes[index] = 1;
+        } else if (matched[index]) {
+          flashes[index] = Math.max(flashes[index] - step, 0.7);
+        } else if (!(mode === "input" && index === input && hissStart >= 0)) {
+          flashes[index] = Math.max(0, flashes[index] - step * 2.2);
+        }
         snake.eyeMaterial.color.copy(EYE_IDLE).lerp(EYE_LIT, flashes[index]).lerp(EYE_WRONG, wrongFlash);
         snake.group.children[0].material.emissiveIntensity = 0.12 + flashes[index] * 0.8;
         snake.group.position.z = flashes[index] * 0.08;
@@ -244,9 +326,9 @@ function setupChamber(ctx) {
   };
 }
 
-export default function Chamber({ place, discovered, casting, onSolve }) {
+export default function Chamber({ place, discovered, casting, onSolve, hissRef, replayAt, onParselState }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupChamber, { place, discovered, casting, onSolve }, place.id);
+  useThreeScene(mountRef, setupChamber, { place, discovered, casting, onSolve, hissRef, replayAt, onParselState }, place.id);
 
   return (
     <div

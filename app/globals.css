@@ -595,6 +595,34 @@ button { color: inherit; font: inherit; }
 .wand-hud .spell-list strong { display: block; font-family: var(--titulo); font-weight: 500; }
 .wand-hud .spell-list span { color: color-mix(in srgb, var(--pergamino) 84%, transparent); font-size: 0.94rem; line-height: 1.4; }
 
+/* Pársel: el patrón de la puerta (punto corto, raya larga) y los controles
+   para sisear. */
+.castle:has(.parsel-hud) .narrative { display: none; }
+.parsel-hud { top: 136px; left: 50%; width: min(32rem, calc(100vw - 32px)); padding: 16px 24px 18px; border-top: 2px solid var(--luz-suave); text-align: center; transform: translateX(-50%); }
+.parsel-pattern { display: flex; justify-content: center; align-items: center; gap: 12px; min-height: 22px; margin: 8px 0 10px; padding: 0; list-style: none; }
+.parsel-pattern li { width: 14px; height: 14px; border: 1px solid var(--luz-suave); border-radius: 999px; transition: background-color 0.2s, box-shadow 0.2s, opacity 0.2s; }
+.parsel-pattern li[data-kind="l"] { width: 48px; }
+.parsel-pattern li[data-state="done"] { background: var(--luz-suave); box-shadow: 0 0 10px var(--luz-suave); }
+.parsel-pattern li[data-state="now"] { animation: parsel-now 1s ease-in-out infinite; }
+@keyframes parsel-now { 50% { box-shadow: 0 0 12px var(--luz-suave); } }
+.parsel-status { margin: 0 0 12px; font-size: 1.02rem; }
+.parsel-controls { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px; }
+.parsel-controls button {
+  border: 1px solid var(--linea);
+  padding: 9px 14px;
+  background: transparent;
+  color: var(--pergamino);
+  font-size: 0.92rem;
+  cursor: pointer;
+  user-select: none;
+  touch-action: none;
+}
+.parsel-controls button:hover { border-color: var(--luz-suave); color: var(--luz-suave); }
+.parsel-hold { border-color: var(--luz-suave) !important; color: var(--luz-suave) !important; font-family: var(--titulo); letter-spacing: 0.06em; }
+.parsel-hold:active { background: color-mix(in srgb, var(--luz-suave) 25%, transparent); }
+.parsel-meter { --nivel: 0; width: 120px; height: 8px; border: 1px solid var(--linea); border-radius: 999px; overflow: hidden; }
+.parsel-meter i { display: block; width: 100%; height: 100%; background: var(--luz-suave); transform: scaleX(var(--nivel)); transform-origin: left; transition: transform 0.06s linear; }
+
 /* Alternativa accesible: plegada para no tentar, a un toque de distancia. */
 .hud-alt { margin-top: 4px; }
 .hud-alt summary { width: fit-content; color: var(--ceniza); font-size: 0.86rem; font-style: italic; cursor: pointer; }
@@ -912,7 +940,7 @@ button { color: inherit; font: inherit; }
   .narrative { top: 110px; left: 8px; width: calc(100vw - 16px); max-height: 40svh; padding: 14px 16px 10px; }
   .place-copy { font-size: 0.98rem; }
 
-  .sorting-hud, .wand-hud { top: 108px; padding: 12px 16px; }
+  .sorting-hud, .wand-hud, .parsel-hud { top: 108px; padding: 12px 16px; }
   .hud-bottom { left: 8px; right: 8px; bottom: 8px; flex-direction: column; align-items: stretch; gap: 8px; }
   .diary-page { width: auto; padding: 14px 16px 10px; transform: none; }
   .diary-page:not(.found) { display: none; }
