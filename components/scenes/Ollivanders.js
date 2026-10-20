@@ -8,6 +8,7 @@ import { useThreeScene } from "@/hooks/useThreeScene";
 import { createDust } from "@/components/scenes/great-hall/dust";
 import { buildShop, placeBox } from "@/components/scenes/ollivanders/shop";
 import { playSfx } from "@/lib/audio/sfx";
+import { createShakeDetector } from "@/lib/gestures/shake";
 import { createPointer, damp } from "@/lib/three/pointer";
 import { createComposer } from "@/lib/three/postprocessing";
 import { createSparks } from "@/lib/three/sparks";
@@ -16,6 +17,8 @@ const CAMERA_POSITION = new THREE.Vector3(0, 1.75, 4.3);
 const CAMERA_TARGET = new THREE.Vector3(0, 1.45, -1);
 const FLAME_COLOR = new THREE.Color(2.4, 1.2, 0.32);
 const UP = new THREE.Vector3(0, 1, 0);
+// Donde flota la varita que tenés en la mano: cerca de la cámara, para verla.
+const PRESENT_POINT = new THREE.Vector3(0.35, 1.62, 2.75);
 const CENTER = new THREE.Vector2();
 
 // Vela: cilindro de cera, llama que brilla con bloom y una luz real.
@@ -63,7 +66,8 @@ function createJar(position) {
   return { group, center: position.clone().add(new THREE.Vector3(0, 0.14, 0)) };
 }
 
-// Caja abierta con la varita adentro. La varita se levanta cuando te elige.
+// Caja abierta con la varita adentro. La varita se levanta cuando la sacás
+// de una caja del estante y queda flotando cuando te elige.
 function createWandBox(position) {
   const group = new THREE.Group();
   group.position.copy(position);
@@ -79,10 +83,8 @@ function createWandBox(position) {
 
   const wand = new THREE.Group();
   wand.position.y = 0.065;
-  const wood = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.006, 0.011, 0.34, 8),
-    new THREE.MeshStandardMaterial({ color: "#7a5236", roughness: 0.6 }),
-  );
+  const woodMaterial = new THREE.MeshStandardMaterial({ color: "#7a5236", roughness: 0.6 });
+  const wood = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.011, 0.34, 8), woodMaterial);
   wood.rotation.z = Math.PI / 2;
   wand.add(wood);
   const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.013, 0.09, 8), new THREE.MeshStandardMaterial({ color: "#3b2414", roughness: 0.7 }));
@@ -94,7 +96,7 @@ function createWandBox(position) {
   tip.position.x = -0.17;
   wand.add(tip);
   group.add(wand);
-  return { group, wand, tip, tipMaterial };
+  return { group, wand, tip, tipMaterial, woodMaterial };
 }
 
 function setupOllivanders(ctx) {
@@ -165,7 +167,18 @@ function setupOllivanders(ctx) {
     boxMesh.instanceColor.needsUpdate = true;
   }
 
-  pointer.onMove(() => {
+  // Agitar: con una varita en la mano, mover el puntero de un lado a otro
+  // rápido. La varita se inclina con la velocidad del puntero.
+  const shaker = createShakeDetector({ onShake: () => props.current.onShake?.() });
+  let lastPointerX = null;
+  let sway = 0;
+
+  pointer.onMove((event) => {
+    if (props.current.heldWand && !props.current.discovered) {
+      shaker.feed(event.clientX, event.timeStamp);
+      if (lastPointerX !== null) sway = THREE.MathUtils.clamp(sway + (event.clientX - lastPointerX) * 0.01, -0.9, 0.9);
+    }
+    lastPointerX = event.clientX;
     const next = boxUnderPointer();
     if (next === hoveredBox) return;
     paintBox(hoveredBox, false);
@@ -174,15 +187,14 @@ function setupOllivanders(ctx) {
     pointer.setCursor(hoveredBox >= 0 ? "pointer" : "");
   });
 
-  // Tocar una caja la saca del estante y abre el diálogo de las varitas.
+  // Tocar una caja la saca del estante y te da otra varita para probar.
   pointer.onTap(() => {
     const index = boxUnderPointer();
     if (index < 0) return;
     pulled.set(index, 0);
     const box = boxes[index];
     smoke.emit(box.position.clone().addScaledVector(box.facing, 0.25), { count: 14, speed: 0.4, color: "#a89a86", intensity: 0.35, lifetime: 1.4 });
-    playSfx("tap");
-    if (!props.current.discovered) props.current.onDiscover();
+    if (!props.current.discovered) props.current.onPickBox?.();
   });
 
   // Efectos de cada prueba. Cada uno arranca un temporizador que vuelve
@@ -210,13 +222,21 @@ function setupOllivanders(ctx) {
     },
     chispas() {
       glow = 1.4;
-      sparks.emit(wandBox.group.position.clone().add(new THREE.Vector3(0, 0.1, 0)), { count: 160, speed: 3.4, lifetime: 1.4, direction: UP });
+      sparks.emit(wandBox.tip.getWorldPosition(new THREE.Vector3()), { count: 160, speed: 3.4, lifetime: 1.4, direction: UP });
     },
   };
 
   let lastTrial = props.current.trial?.at ?? 0;
   let wasDiscovered = props.current.discovered;
   let rise = wasDiscovered ? 1 : 0;
+  let shownWand = props.current.heldWand ?? null;
+  // Puntos de la varita en coordenadas de la caja: adentro y presentada.
+  const wandRest = wandBox.wand.position.clone();
+  wandBox.group.updateMatrixWorld();
+  const wandPresent = wandBox.group.worldToLocal(PRESENT_POINT.clone());
+  const wandAt = new THREE.Vector3();
+  let wiggle = 0;
+  const woodTarget = new THREE.Color("#7a5236");
 
   const composer = createComposer({
     renderer,
@@ -237,6 +257,7 @@ function setupOllivanders(ctx) {
       // Nueva prueba de varita desde el diálogo.
       if (trial && trial.at !== lastTrial) {
         lastTrial = trial.at;
+        wiggle = 1;
         const effect = getWand(trial.wandId)?.trial;
         TRIALS[effect]?.();
       }
@@ -244,7 +265,7 @@ function setupOllivanders(ctx) {
       // La varita te eligió: se levanta de la caja y estalla en chispas.
       if (discovered && !wasDiscovered) {
         const color = getHouse(house)?.accent ?? "#ffd88a";
-        sparks.emit(wandBox.group.position.clone().add(new THREE.Vector3(0, 0.35, 0)), { count: 220, speed: 3, lifetime: 1.8, color, direction: UP });
+        sparks.emit(wandBox.tip.getWorldPosition(new THREE.Vector3()), { count: 220, speed: 3, lifetime: 1.8, color, direction: UP });
         glow = 2;
       }
       wasDiscovered = discovered;
@@ -303,10 +324,27 @@ function setupOllivanders(ctx) {
       if (jar.group.visible) jar.group.scale.setScalar(damp(jar.group.scale.x, 1, 6, delta || 1));
 
       // Varita elegida: sube, gira despacio y la punta queda encendida.
-      rise = damp(rise, discovered ? 1 : 0, 2.5, delta || 1);
-      wandBox.wand.position.y = 0.065 + rise * (0.32 + Math.sin(elapsed * 1.6) * 0.02);
+      // Otra varita en la mano: vuelve a la caja y sube de nuevo, con su madera.
+      const { heldWand } = props.current;
+      if (heldWand !== shownWand) {
+        shownWand = heldWand;
+        rise = 0;
+        const wood = getWand(heldWand)?.woodColor;
+        if (wood) woodTarget.set(wood);
+        smoke.emit(wandBox.group.position.clone().add(new THREE.Vector3(0, 0.1, 0)), { count: 20, speed: 0.5, color: "#a89a86", intensity: 0.35, lifetime: 1.2 });
+      }
+      wandBox.woodMaterial.color.lerp(woodTarget, Math.min(1, step * 4));
+      rise = damp(rise, discovered || heldWand ? 1 : 0, 2.5, delta || 1);
+      wandAt.lerpVectors(wandRest, wandPresent, rise);
+      wandAt.y += rise * Math.sin(elapsed * 1.6) * 0.02;
+      wandBox.wand.position.copy(wandAt);
+      wandBox.wand.scale.setScalar(1 + rise * 0.6);
       wandBox.wand.rotation.y = rise * elapsed * 0.6;
-      glow = Math.max(discovered ? 0.6 : 0, glow - step * 0.8);
+      sway = damp(sway, 0, 4, delta || 1);
+      wiggle = Math.max(0, wiggle - step * 1.5);
+      wandBox.wand.rotation.z = rise * (sway * 0.6 + Math.sin(elapsed * 40) * 0.25 * wiggle);
+      glow = Math.max(discovered ? 0.6 : heldWand ? 0.25 : 0, glow - step * 0.8);
+      wandBox.tip.getWorldPosition(flare.position);
       flare.intensity = glow * 4;
       wandBox.tipMaterial.color.copy(FLAME_COLOR).multiplyScalar(Math.min(glow, 1.2));
 
@@ -319,9 +357,9 @@ function setupOllivanders(ctx) {
   };
 }
 
-export default function Ollivanders({ place, discovered, onDiscover, trial, house }) {
+export default function Ollivanders({ place, discovered, trial, house, heldWand, onPickBox, onShake }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupOllivanders, { place, discovered, onDiscover, trial, house }, place.id);
+  useThreeScene(mountRef, setupOllivanders, { place, discovered, trial, house, heldWand, onPickBox, onShake }, place.id);
 
   return (
     <div

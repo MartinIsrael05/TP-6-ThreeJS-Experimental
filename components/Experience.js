@@ -13,6 +13,8 @@ import { spells } from "@/data/spells";
 import { getWand, wandName } from "@/data/wands";
 import { useProgress } from "@/hooks/useProgress";
 import { useSorting } from "@/hooks/useSorting";
+import { useWandShop } from "@/hooks/useWandShop";
+import { createShakeDetector } from "@/lib/gestures/shake";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
 import AuthPanel from "@/components/AuthPanel";
@@ -24,10 +26,11 @@ import SpellCanvas from "@/components/SpellCanvas";
 import SpellGlyph from "@/components/SpellGlyph";
 import ThreeArtifact from "@/components/ThreeArtifact";
 import WandCursor from "@/components/WandCursor";
-import WandDialog from "@/components/WandDialog";
+import WandHud from "@/components/WandHud";
 
-// Lugares que se resuelven con un diálogo HTML en lugar de marcarse directo.
-const DIALOG_BY_ITEM = { varita: "wand" };
+// Lugares que empiezan con un botón (ponerse el Sombrero, probar varitas)
+// en lugar de resolverse con un hechizo.
+const STARTS_WITH_ACTION = new Set(["sombrero", "varita"]);
 
 // Hechizo que se usa en cada lugar. Se lanza dibujándolo en la escena (la
 // escena reacciona y el juego sigue) o con el botón alternativo: en ese caso
@@ -46,9 +49,7 @@ export default function Experience({ initialPlaceId }) {
   const [flash, setFlash] = useState(false);
   const [authOpen, setAuthOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
-  const [dialog, setDialog] = useState(null);
   const [castingPlaceId, setCastingPlaceId] = useState(null);
-  const [wandTrial, setWandTrial] = useState(null);
   // El relato se pliega cuando empezás a jugar; se guarda en qué lugar se
   // plegó para que el siguiente arranque abierto.
   const [storyClosedFor, setStoryClosedFor] = useState(null);
@@ -80,6 +81,8 @@ export default function Experience({ initialPlaceId }) {
     wand: wandId,
   } = useProgress();
   const sorting = useSorting({ onSorted: chooseHouse });
+  const shop = useWandShop({ onChoose: handleWandChosen });
+  const shopRef = useRef(shop);
   const place = places[activeIndex];
   const nextPlace = places[activeIndex + 1];
   const isCollected = collected.has(place.item.id);
@@ -90,9 +93,7 @@ export default function Experience({ initialPlaceId }) {
   const hintHere = hint?.placeId === place.id ? hint.text : null;
   // El lugar espera que dibujes su hechizo: una vez (once) o cuando quieras.
   const awaitingSpell = Boolean(spell) && !isCollected && !casting && (!spell.once || !castHere);
-  // Lugares que empiezan con un botón (ponerse el Sombrero, probar varitas)
-  // en lugar de resolverse con un hechizo.
-  const usesDialog = Boolean(DIALOG_BY_ITEM[place.item.id]) || place.item.id === "sombrero";
+  const usesDialog = STARTS_WITH_ACTION.has(place.item.id);
   const alternativeLabel =
     place.action ?? (spell ? `Lanzar ${spell.incantation}` : "Resolver sin la escena 3D");
   const collectedCount = places.filter((entry) =>
@@ -125,6 +126,20 @@ export default function Experience({ initialPlaceId }) {
   // Si se cambia de lugar con un hechizo en el aire, el hechizo se pierde.
   useEffect(() => () => window.clearTimeout(castTimer.current), [place.id]);
   useEffect(() => () => window.clearTimeout(finaleTimer.current), []);
+
+  useEffect(() => {
+    shopRef.current = shop;
+  });
+
+  // En el celular también se puede agitar la varita sacudiendo el teléfono.
+  const holdingWand = place.item.id === "varita" && shop.phase === "holding";
+  useEffect(() => {
+    if (!holdingWand) return undefined;
+    const detector = createShakeDetector({ onShake: () => shopRef.current.shake() });
+    const onMotion = (event) => detector.feedMotion(event.acceleration);
+    window.addEventListener("devicemotion", onMotion);
+    return () => window.removeEventListener("devicemotion", onMotion);
+  }, [holdingWand]);
 
   useEffect(() => {
     if (!hint) return undefined;
@@ -180,8 +195,7 @@ export default function Experience({ initialPlaceId }) {
       if (!sorting.phase) startSorting();
       return;
     }
-    const dialogId = DIALOG_BY_ITEM[place.item.id];
-    if (dialogId) setDialog(dialogId);
+    if (place.item.id === "varita") shop.pickBox();
     else castSpell();
   }
 
@@ -327,7 +341,10 @@ export default function Experience({ initialPlaceId }) {
               onDiscover={handleCollect}
               onSolve={handleSolve}
               house={houseId}
-              trial={wandTrial}
+              trial={shop.trial}
+              heldWand={shop.held?.id ?? wandId}
+              onPickBox={shop.pickBox}
+              onShake={() => shop.shake()}
               spellCast={castHere}
               sortingQuestion={sorting.question}
               sortingPhase={sorting.phase}
@@ -394,6 +411,7 @@ export default function Experience({ initialPlaceId }) {
           {sorting.phase && place.item.id === "sombrero" && (
             <SortingHud sorting={sorting} house={house} onFinish={finishSorting} />
           )}
+          {place.item.id === "varita" && <WandHud shop={shop} />}
 
           {/* Abajo: la página del diario a la izquierda y la instrucción a la
               derecha (en el celular, una arriba de la otra). */}
@@ -435,7 +453,7 @@ export default function Experience({ initialPlaceId }) {
                 {hintHere}
               </p>
             )}
-            {!isCollected && usesDialog && !sorting.phase && (
+            {!isCollected && usesDialog && !sorting.phase && shop.phase === "browsing" && (
               <button onClick={handleCollect}>{alternativeLabel}</button>
             )}
             {/* Alternativa accesible a la escena 3D: resuelve el lugar con un botón. */}
@@ -491,14 +509,6 @@ export default function Experience({ initialPlaceId }) {
             <button onClick={handleReset}>Empezar de nuevo</button>
           </div>
         </section>
-      )}
-
-      {dialog === "wand" && (
-        <WandDialog
-          onTry={(trialWandId) => setWandTrial({ wandId: trialWandId, at: Date.now() })}
-          onChoose={handleWandChosen}
-          onClose={() => setDialog(null)}
-        />
       )}
 
       {authOpen && (

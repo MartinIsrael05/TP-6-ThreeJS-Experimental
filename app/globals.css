@@ -581,6 +581,20 @@ button { color: inherit; font: inherit; }
 .sorting-hud .house-name { margin: 4px 0 10px; font-family: var(--titulo); font-size: clamp(2rem, 5vw, 2.8rem); line-height: 1.1; }
 .sorting-confirm { margin-top: 6px; border-color: var(--luz-suave); font-family: var(--titulo); font-size: 0.85rem; letter-spacing: 0.08em; text-align: center; }
 
+/* Ollivanders: la varita en la mano y cómo reaccionó. Mismo lugar que el
+   panel del Sombrero. */
+.castle:has(.wand-hud) .narrative { display: none; }
+.wand-hud { top: 136px; left: 50%; width: min(32rem, calc(100vw - 32px)); padding: 18px 26px 16px; border-top: 2px solid var(--luz-suave); text-align: center; transform: translateX(-50%); }
+.wand-hud h3 { margin: 0 0 6px; font-family: var(--titulo); font-size: clamp(1.1rem, 1.8vw, 1.4rem); font-weight: 500; }
+.wand-description { margin: 0 0 10px; color: color-mix(in srgb, var(--pergamino) 84%, transparent); font-size: 0.98rem; }
+.wand-reaction { margin: 0 0 10px; color: var(--luz-suave); font-style: italic; animation: ink-in 0.6s ease-out both; }
+.wand-hud .sorting-help { margin-top: 8px; }
+.wand-hud .hud-alt summary { margin-inline: auto; }
+.wand-hud .spell-list { display: grid; gap: 10px; margin: 6px 0 14px; padding: 0; list-style: none; text-align: left; }
+.wand-hud .spell-list li { display: grid; grid-template-columns: 40px 1fr; align-items: center; gap: 12px; border: 0; padding: 0; }
+.wand-hud .spell-list strong { display: block; font-family: var(--titulo); font-weight: 500; }
+.wand-hud .spell-list span { color: color-mix(in srgb, var(--pergamino) 84%, transparent); font-size: 0.94rem; line-height: 1.4; }
+
 /* Alternativa accesible: plegada para no tentar, a un toque de distancia. */
 .hud-alt { margin-top: 4px; }
 .hud-alt summary { width: fit-content; color: var(--ceniza); font-size: 0.86rem; font-style: italic; cursor: pointer; }
@@ -898,7 +912,7 @@ button { color: inherit; font: inherit; }
   .narrative { top: 110px; left: 8px; width: calc(100vw - 16px); max-height: 40svh; padding: 14px 16px 10px; }
   .place-copy { font-size: 0.98rem; }
 
-  .sorting-hud { top: 108px; padding: 12px 16px; }
+  .sorting-hud, .wand-hud { top: 108px; padding: 12px 16px; }
   .hud-bottom { left: 8px; right: 8px; bottom: 8px; flex-direction: column; align-items: stretch; gap: 8px; }
   .diary-page { width: auto; padding: 14px 16px 10px; transform: none; }
   .diary-page:not(.found) { display: none; }
