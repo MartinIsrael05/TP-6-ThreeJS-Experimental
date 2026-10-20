@@ -16,7 +16,10 @@ const START_TURNS = [1, 2, 3];
 const QUARTER = Math.PI / 2;
 const TURN_SECONDS = 0.7;
 const SOLVE_SECONDS = 1.8;
-const LOOK_AT = new THREE.Vector3(0, 4.3, 0);
+const LOOK_AT = new THREE.Vector3(0, 5, 0);
+// Radianes que gira un tramo por cada píxel de arrastre.
+const DRAG_SPEED = 0.012;
+const SEAL_COLOR = new THREE.Color(1.6, 0.3, 0.9);
 const CENTER = new THREE.Vector2();
 const RUNE_WRONG = new THREE.Color(2, 0.5, 0.25);
 const RUNE_RIGHT = new THREE.Color(0.4, 2, 0.8);
@@ -48,9 +51,30 @@ function setupStaircase(ctx) {
       object.userData.flight = index;
     });
     scene.add(built.group);
-    return { ...built, index, turns, from: angle, to: angle, t: 1, duration: TURN_SECONDS, glow: 0 };
+    return { ...built, index, turns, from: angle, to: angle, t: 1, duration: TURN_SECONDS, glow: 0, jiggle: 0 };
   });
   if (solvedAtStart) flights.forEach((flight) => flight.runeMaterial.color.copy(RUNE_RIGHT));
+
+  // Sello: un aro violeta alrededor de cada tramo mientras las escaleras
+  // están trabadas. Alohomora lo rompe.
+  let locked = !solvedAtStart;
+  let sealFade = locked ? 1 : 0;
+  const sealMaterial = new THREE.MeshBasicMaterial({
+    color: SEAL_COLOR,
+    transparent: true,
+    opacity: 0.8,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending,
+  });
+  const sealGeometry = new THREE.TorusGeometry(1.2, 0.03, 8, 72);
+  const seals = flights.map((flight) => {
+    const seal = new THREE.Mesh(sealGeometry, sealMaterial);
+    seal.position.copy(flight.group.position);
+    seal.rotation.x = Math.PI / 2;
+    seal.visible = locked;
+    scene.add(seal);
+    return seal;
+  });
 
   // La página espera en el último descanso.
   const { page, material: pageMaterial } = createDiaryPage();
@@ -98,6 +122,19 @@ function setupStaircase(ctx) {
     if (delay === 0) startTurnEffects(flight);
   }
 
+  function unlock() {
+    locked = false;
+    playSfx("stone");
+    shake = 0.8;
+    seals.forEach((seal) => sparks.emit(seal.position, { count: 70, speed: 2.6, color: "#e07bff", lifetime: 1.1 }));
+  }
+
+  // Tramo trabado: tiembla y suena a piedra que no cede.
+  function refuse(flight) {
+    flight.jiggle = 0.5;
+    playSfx("error");
+  }
+
   function startTurnEffects(flight) {
     playSfx("stone");
     shake = 0.5;
@@ -131,18 +168,81 @@ function setupStaircase(ctx) {
     }
   }
 
-  pointer.onMove(() => {
-    hovered = solved || solving >= 0 ? -1 : flightUnderPointer();
-    pointer.setCursor(hovered >= 0 ? "pointer" : "");
+  // Arrastrar un tramo lo gira a mano; al soltarlo se acomoda en el cuarto
+  // de vuelta más cercano. Un toque sin arrastre lo gira un cuarto.
+  let drag = null;
+  let skipTap = false;
+
+  function canPlay() {
+    return !solved && solving < 0 && !props.current.casting;
+  }
+
+  function settle(flight) {
+    const correct = flight.index % 2 ? Math.PI : 0;
+    const quarters = Math.round((flight.group.rotation.y - correct) / QUARTER);
+    flight.from = flight.group.rotation.y;
+    flight.to = correct + quarters * QUARTER;
+    flight.turns = ((quarters % 4) + 4) % 4;
+    flight.duration = 0.35;
+    flight.t = 0;
+    solvedByPlaying = true;
+    startTurnEffects(flight);
+  }
+
+  pointer.onDown((event) => {
+    if (!canPlay()) return;
+    const index = flightUnderPointer();
+    if (index < 0) return;
+    const flight = flights[index];
+    if (locked) {
+      refuse(flight);
+      skipTap = true;
+      return;
+    }
+    if (flight.t < 1) return;
+    drag = { flight, startX: event.clientX, startAngle: flight.group.rotation.y, moved: false, quarter: 0 };
+    renderer.domElement.setPointerCapture?.(event.pointerId);
+  });
+
+  pointer.onMove((event) => {
+    if (drag) {
+      const dx = event.clientX - drag.startX;
+      if (Math.abs(dx) > 6) drag.moved = true;
+      drag.flight.group.rotation.y = drag.startAngle + dx * DRAG_SPEED;
+      // Un clic de piedra cada vez que pasa por un cuarto de vuelta.
+      const quarter = Math.round((dx * DRAG_SPEED) / QUARTER);
+      if (quarter !== drag.quarter) {
+        drag.quarter = quarter;
+        playSfx("tap");
+      }
+      return;
+    }
+    hovered = canPlay() ? flightUnderPointer() : -1;
+    pointer.setCursor(hovered >= 0 ? (locked ? "not-allowed" : "grab") : "");
+  });
+
+  pointer.onUp(() => {
+    if (!drag) return;
+    const { flight, moved } = drag;
+    drag = null;
+    if (!moved) return;
+    skipTap = true;
+    settle(flight);
   });
 
   pointer.onTap(() => {
-    if (solved || solving >= 0 || props.current.casting) return;
+    if (skipTap) {
+      skipTap = false;
+      return;
+    }
+    if (!canPlay() || locked) return;
     const index = flightUnderPointer();
     if (index < 0 || flights[index].t < 1) return;
     solvedByPlaying = true;
     turn(flights[index], 1);
   });
+
+  let lastSpellAt = props.current.spellCast?.at ?? 0;
 
   // Alohomora desde el botón: cada tramo gira solo hasta su lugar, uno
   // detrás del otro.
@@ -165,10 +265,27 @@ function setupStaircase(ctx) {
     composer,
     resize(width, height) {
       const aspect = width / height;
-      distance = Math.max(17, 6.4 / (Math.tan(halfFov) * aspect));
+      distance = Math.max(19, 6.6 / (Math.tan(halfFov) * aspect));
     },
     update({ elapsed, delta, reducedMotion }) {
       const step = reducedMotion ? 1 : delta;
+
+      // Alohomora dibujado rompe el sello; el botón alternativo también.
+      const cast = props.current.spellCast;
+      if (cast && cast.at !== lastSpellAt) {
+        lastSpellAt = cast.at;
+        if (cast.id === "alohomora" && locked) unlock();
+      }
+      if (props.current.casting && locked) unlock();
+      if (sealFade > 0) {
+        sealFade = locked ? 1 : Math.max(0, sealFade - step * 1.6);
+        sealMaterial.opacity = 0.8 * sealFade * (locked ? 0.75 + Math.sin(elapsed * 3) * 0.25 : 1);
+        seals.forEach((seal, index) => {
+          seal.rotation.z = elapsed * (index % 2 ? -0.6 : 0.6);
+          seal.scale.setScalar(1 + (1 - sealFade) * 1.5);
+          seal.visible = sealFade > 0;
+        });
+      }
 
       if (props.current.casting && !castHandled && !solved) {
         castHandled = true;
@@ -192,6 +309,11 @@ function setupStaircase(ctx) {
             flight.group.rotation.y = flight.to;
             finishTurn(flight);
           }
+        }
+        // Trabado y tocado: tiembla un poco y vuelve.
+        if (flight.jiggle > 0) {
+          flight.jiggle = Math.max(0, flight.jiggle - step);
+          if (flight.t >= 1 && drag?.flight !== flight) flight.group.rotation.y = flight.to + Math.sin(flight.jiggle * 60) * 0.04 * flight.jiggle;
         }
         const target = flight.index === hovered ? 0.35 : solved ? 0.12 : 0;
         flight.glow = damp(flight.glow, target, 8, step);
@@ -232,7 +354,7 @@ function setupStaircase(ctx) {
         light.intensity = 16 * flicker;
       });
 
-      if (!reducedMotion) eased.lerp(pointer.state.inside ? pointer.ndc : CENTER, 1 - Math.exp(-delta * 3));
+      if (!reducedMotion && !drag) eased.lerp(pointer.state.inside ? pointer.ndc : CENTER, 1 - Math.exp(-delta * 3));
       camera.position.set(eased.x * 1.2, 7.8 + eased.y * 0.6, distance);
       if (shake > 0 && !reducedMotion) {
         camera.position.x += (Math.random() - 0.5) * 0.12 * shake;
@@ -247,9 +369,9 @@ function setupStaircase(ctx) {
   };
 }
 
-export default function GrandStaircase({ place, discovered, casting, onSolve }) {
+export default function GrandStaircase({ place, discovered, casting, onSolve, spellCast }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupStaircase, { place, discovered, casting, onSolve }, place.id);
+  useThreeScene(mountRef, setupStaircase, { place, discovered, casting, onSolve, spellCast }, place.id);
 
   return (
     <div

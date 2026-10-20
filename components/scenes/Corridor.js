@@ -118,8 +118,25 @@ function setupCorridor(ctx) {
   scene.add(water);
 
   // Ventana con luz de luna a la izquierda.
-  const window_ = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 2.2), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.35, 0.5, 0.8) }));
+  // Ventana en arco con parteluz: vidrio azul oscuro y marco de piedra.
+  const arch = new THREE.Shape();
+  arch.moveTo(-0.55, -1.1);
+  arch.lineTo(0.55, -1.1);
+  arch.lineTo(0.55, 0.55);
+  arch.absarc(0, 0.55, 0.55, 0, Math.PI, false);
+  arch.closePath();
+  const window_ = new THREE.Group();
   window_.position.set(-4.6, 3.4, 0.02);
+  window_.add(new THREE.Mesh(new THREE.ShapeGeometry(arch, 16), new THREE.MeshBasicMaterial({ color: new THREE.Color(0.1, 0.16, 0.3) })));
+  const mullion = new THREE.MeshStandardMaterial({ color: "#1c1a18", roughness: 0.9 });
+  [
+    [0.06, 2.75, 0, 0.1],
+    [1.1, 0.06, 0, -0.1],
+  ].forEach(([width, height, x, y]) => {
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(width, height, 0.05), mullion);
+    bar.position.set(x, y, 0.02);
+    window_.add(bar);
+  });
   scene.add(window_);
 
   const message = createMessage(place.secret ?? [place.title], MESSAGE_SIZE);
@@ -180,14 +197,23 @@ function setupCorridor(ctx) {
   pointer.onMove(() => {
     if (lumosOn) shine(solved === 0);
   });
+  // Sin Lumos, tocar solo saca unas chispitas de la varita: la luz se
+  // enciende dibujando el hechizo.
   pointer.onTap(() => {
     if (!lumosOn) {
-      lumosOn = true;
-      playSfx("lumos");
-      sparks.emit(wandTip, { count: 30, speed: 0.8, color: "#d8e6ff", lifetime: 0.6 });
+      sparks.emit(wandTip, { count: 8, speed: 0.4, color: "#d8e6ff", intensity: 0.8, lifetime: 0.4 });
+      return;
     }
     shine(solved === 0);
   });
+
+  function lightUp() {
+    lumosOn = true;
+    sparks.emit(wandTip, { count: 40, speed: 1, color: "#d8e6ff", lifetime: 0.8 });
+    shine(false);
+  }
+
+  let lastSpellAt = props.current.spellCast?.at ?? 0;
 
   function startSolve() {
     solving = 0;
@@ -216,6 +242,12 @@ function setupCorridor(ctx) {
     },
     update({ elapsed, delta, reducedMotion }) {
       const step = reducedMotion ? 1 : delta;
+
+      const cast = props.current.spellCast;
+      if (cast && cast.at !== lastSpellAt) {
+        lastSpellAt = cast.at;
+        if (cast.id === "lumos" && !lumosOn) lightUp();
+      }
 
       // Lumos desde el botón: la luz recorre los dos renglones sola.
       if (props.current.casting && castSweep < 0 && solved === 0) {
@@ -281,9 +313,9 @@ function setupCorridor(ctx) {
   };
 }
 
-export default function Corridor({ place, discovered, casting, onSolve }) {
+export default function Corridor({ place, discovered, casting, onSolve, spellCast }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupCorridor, { place, discovered, casting, onSolve }, place.id);
+  useThreeScene(mountRef, setupCorridor, { place, discovered, casting, onSolve, spellCast }, place.id);
 
   return (
     <div

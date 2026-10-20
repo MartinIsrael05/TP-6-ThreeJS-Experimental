@@ -19,6 +19,9 @@ const CAUGHT_POINT = new THREE.Vector3(0, 3.7, 8.4);
 const TIRE_SECONDS = 35;
 // Un toque que pasa a menos de esta distancia la asusta.
 const NEAR_MISS = 2.6;
+// Accio dibujado: la snitch se acerca hasta acá y aguanta unos segundos.
+const ACCIO_POINT = new THREE.Vector3(0, 4.2, 3);
+const ACCIO_SECONDS = 3.5;
 
 function setupQuidditch(ctx) {
   const { scene, camera, renderer, props } = ctx;
@@ -60,7 +63,9 @@ function setupQuidditch(ctx) {
 
   let flyTime = 0;
   let misses = 0;
-  let state = caughtAtStart ? "caught" : "flying"; // flying | summoned | caught
+  let state = caughtAtStart ? "caught" : "flying"; // flying | pulled | summoned | caught
+  let pulledFor = 0;
+  let lastSpellAt = props.current.spellCast?.at ?? 0;
   let caughtFor = caughtAtStart ? 99 : 0;
   let solvedByPlaying = false;
 
@@ -73,14 +78,14 @@ function setupQuidditch(ctx) {
   }
 
   pointer.onTap(() => {
-    if (state !== "flying" || props.current.casting) return;
+    if ((state !== "flying" && state !== "pulled") || props.current.casting) return;
     if (pointer.cast(snitch.hitArea, false).length > 0) {
       catchIt(true);
       return;
     }
     // Casi: el toque pasó cerca. La snitch se asusta, escapa y se cansa.
     pointer.ray().closestPointToPoint(flight.position, closest);
-    if (closest.distanceTo(flight.position) < NEAR_MISS) {
+    if (state === "flying" && closest.distanceTo(flight.position) < NEAR_MISS) {
       misses += 1;
       flight.dart();
       projected.copy(flight.position).project(camera);
@@ -110,7 +115,27 @@ function setupQuidditch(ctx) {
         bursts.emit(CAUGHT_POINT, { count: 40, speed: 1.5, lifetime: 0.6 });
       }
 
-      if (state === "flying") {
+      // Accio dibujado: la snitch viene hacia vos, pero hay que atraparla.
+      const cast = props.current.spellCast;
+      if (cast && cast.at !== lastSpellAt) {
+        lastSpellAt = cast.at;
+        if (cast.id === "accio" && state === "flying") {
+          state = "pulled";
+          pulledFor = 0;
+          trail.emit(flight.position, { count: 60, speed: 2, lifetime: 0.8 });
+        }
+      }
+
+      if (state === "pulled") {
+        pulledFor += step;
+        flight.pull(ACCIO_POINT.clone().add(new THREE.Vector3(Math.sin(elapsed * 2) * 0.8, Math.cos(elapsed * 2.6) * 0.4, 0)), step, 1.6);
+        // Se suelta y escapa, más cansada que antes.
+        if (pulledFor > ACCIO_SECONDS) {
+          state = "flying";
+          misses += 1;
+          flight.dart();
+        }
+      } else if (state === "flying") {
         flyTime += step;
         // Con prefers-reduced-motion vuela siempre a la velocidad más lenta.
         const fatigue = reducedMotion ? 1 : Math.min(1, flyTime / TIRE_SECONDS + misses * 0.12);
@@ -148,7 +173,7 @@ function setupQuidditch(ctx) {
       buzz.update({ pan: projected.x, distance: camera.position.distanceTo(flight.position), speed, quiet: state === "caught" });
 
       // El cursor cambia cuando la snitch está a tiro.
-      if (pointer.state.inside && state === "flying") {
+      if (pointer.state.inside && (state === "flying" || state === "pulled")) {
         pointer.setCursor(pointer.cast(snitch.hitArea, false).length > 0 ? "pointer" : "");
       }
 
@@ -163,9 +188,9 @@ function setupQuidditch(ctx) {
   };
 }
 
-export default function Quidditch({ place, discovered, casting, onSolve }) {
+export default function Quidditch({ place, discovered, casting, onSolve, spellCast }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupQuidditch, { place, discovered, casting, onSolve }, place.id);
+  useThreeScene(mountRef, setupQuidditch, { place, discovered, casting, onSolve, spellCast }, place.id);
 
   return (
     <div

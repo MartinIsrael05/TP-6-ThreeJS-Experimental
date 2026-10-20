@@ -18,6 +18,8 @@ import AuthPanel from "@/components/AuthPanel";
 import Prologue from "@/components/Prologue";
 import SortingHatDialog from "@/components/SortingHatDialog";
 import SoundToggle from "@/components/SoundToggle";
+import SpellCanvas from "@/components/SpellCanvas";
+import SpellGlyph from "@/components/SpellGlyph";
 import ThreeArtifact from "@/components/ThreeArtifact";
 import WandCursor from "@/components/WandCursor";
 import WandDialog from "@/components/WandDialog";
@@ -25,10 +27,12 @@ import WandDialog from "@/components/WandDialog";
 // Lugares que se resuelven con un diálogo HTML en lugar de marcarse directo.
 const DIALOG_BY_ITEM = { sombrero: "sorting", varita: "wand" };
 
-// Hechizo que se usa en cada lugar: el botón alternativo a la escena 3D lo
-// lanza, la escena lo anima y después de CAST_MS el lugar queda resuelto.
+// Hechizo que se usa en cada lugar. Se lanza dibujándolo en la escena (la
+// escena reacciona y el juego sigue) o con el botón alternativo: en ese caso
+// la escena lo anima y después de CAST_MS el lugar queda resuelto.
 const SPELL_BY_PLACE = Object.fromEntries(spells.map((spell) => [spell.placeId, spell]));
 const CAST_MS = 1800;
+const HINT_MS = 3200;
 
 export default function Experience({ initialPlaceId }) {
   const router = useRouter();
@@ -43,6 +47,13 @@ export default function Experience({ initialPlaceId }) {
   const [dialog, setDialog] = useState(null);
   const [castingPlaceId, setCastingPlaceId] = useState(null);
   const [wandTrial, setWandTrial] = useState(null);
+  // El relato se pliega cuando empezás a jugar; se guarda en qué lugar se
+  // plegó para que el siguiente arranque abierto.
+  const [storyClosedFor, setStoryClosedFor] = useState(null);
+  // Último hechizo dibujado ({ placeId, id, at }) y el aviso si el trazo no
+  // salió. Llevan el lugar para no arrastrarse al siguiente.
+  const [drawnSpell, setDrawnSpell] = useState(null);
+  const [hint, setHint] = useState(null);
   const castTimer = useRef(0);
   const finaleTimer = useRef(0);
   const {
@@ -71,6 +82,12 @@ export default function Experience({ initialPlaceId }) {
   const isCollected = collected.has(place.item.id);
   const spell = SPELL_BY_PLACE[place.id];
   const casting = castingPlaceId === place.id;
+  const storyOpen = storyClosedFor !== place.id;
+  const castHere = drawnSpell?.placeId === place.id ? drawnSpell : null;
+  const hintHere = hint?.placeId === place.id ? hint.text : null;
+  // El lugar espera que dibujes su hechizo: una vez (once) o cuando quieras.
+  const awaitingSpell = Boolean(spell) && !isCollected && !casting && (!spell.once || !castHere);
+  const usesDialog = Boolean(DIALOG_BY_ITEM[place.item.id]);
   const alternativeLabel =
     place.action ?? (spell ? `Lanzar ${spell.incantation}` : "Resolver sin la escena 3D");
   const collectedCount = places.filter((entry) =>
@@ -103,6 +120,12 @@ export default function Experience({ initialPlaceId }) {
   // Si se cambia de lugar con un hechizo en el aire, el hechizo se pierde.
   useEffect(() => () => window.clearTimeout(castTimer.current), [place.id]);
   useEffect(() => () => window.clearTimeout(finaleTimer.current), []);
+
+  useEffect(() => {
+    if (!hint) return undefined;
+    const timeout = window.setTimeout(() => setHint(null), HINT_MS);
+    return () => window.clearTimeout(timeout);
+  }, [hint]);
 
   // El primer gesto en la página desbloquea el audio. Cada lugar tiene su
   // ambiente; con el final abierto suena la caja de música en mayor.
@@ -163,6 +186,25 @@ export default function Experience({ initialPlaceId }) {
       setCastingPlaceId(null);
       completeItem(itemId);
     }, CAST_MS);
+  }
+
+  // Trazo reconocido. Los hechizos que se repiten tienen un respiro entre
+  // uno y otro para que no se resuelva todo a fuerza de dibujar.
+  function handleDrawnSpell(cast) {
+    const now = Date.now();
+    if (!cast.once && castHere && now - castHere.at < cast.cooldown * 1000) {
+      playSfx("fizzle");
+      setHint({ placeId: place.id, text: "La varita todavía chisporrotea. Esperá un momento." });
+      return;
+    }
+    playSfx(cast.id === "lumos" ? "lumos" : "spell");
+    setDrawnSpell({ placeId: place.id, id: cast.id, at: now });
+    setHint(null);
+  }
+
+  function handleMissedSpell() {
+    playSfx("fizzle");
+    setHint({ placeId: place.id, text: `La varita chisporroteó. Probá otra vez: ${spell.gesture.shape}.` });
   }
 
   // La escena avisa que el puzzle se resolvió jugando.
@@ -252,9 +294,28 @@ export default function Experience({ initialPlaceId }) {
       </header>
 
       {entered && (
-        <>
-        <section className="place-layout">
-          <nav className="place-nav" aria-label="Lugares del castillo">
+        <section className="castle" aria-labelledby="place-title">
+          {/* La escena ocupa toda la pantalla; tocarla pliega el relato. */}
+          <div className="stage" onPointerDown={() => setStoryClosedFor(place.id)}>
+            <ThreeArtifact
+              key={place.id}
+              place={place}
+              discovered={isCollected}
+              casting={casting}
+              onDiscover={handleCollect}
+              onSolve={handleSolve}
+              house={houseId}
+              trial={wandTrial}
+              spellCast={castHere}
+            />
+            <SpellCanvas
+              spell={awaitingSpell ? spell : null}
+              onCast={handleDrawnSpell}
+              onMiss={handleMissedSpell}
+            />
+          </div>
+
+          <nav className="place-nav hud" aria-label="Lugares del castillo">
             <ol>
               {places.map((entry, index) => {
                 const unlocked = canOpen(index);
@@ -274,6 +335,7 @@ export default function Experience({ initialPlaceId }) {
                       onClick={() => openPlace(entry.id)}
                       aria-current={index === activeIndex ? "page" : undefined}
                       aria-label={`${entry.number}. ${entry.label}${stateText}`}
+                      title={entry.label}
                     >
                       <b>{entry.number}</b>
                       <span>{entry.label}</span>
@@ -288,60 +350,82 @@ export default function Experience({ initialPlaceId }) {
             </button>
           </nav>
 
-          <article className="narrative">
+          <article className={`narrative hud ${storyOpen ? "" : "is-collapsed"}`}>
             <p className="place-eyebrow">{place.eyebrow}</p>
-            <h2>{place.title}</h2>
-            <p className="place-copy">{place.copy}</p>
-
-            <div
-              className={`diary-page ${isCollected ? "found" : ""}`}
-              aria-live="polite"
+            <h2 id="place-title">{place.title}</h2>
+            <p className="place-copy" id="place-copy" hidden={!storyOpen}>
+              {place.copy}
+            </p>
+            <button
+              className="story-toggle"
+              aria-expanded={storyOpen}
+              aria-controls="place-copy"
+              onClick={() => setStoryClosedFor(storyOpen ? place.id : null)}
             >
-              <small>{itemTypeLabels[place.item.type]}</small>
-              <strong>
-                {isCollected ? place.item.label : "Todavía en blanco"}
-                {isCollected && itemDetail && <span>{itemDetail}</span>}
-              </strong>
-            </div>
+              {storyOpen ? "Plegar el relato" : "Leer el relato"}
+            </button>
           </article>
 
-          <div className="artifact-panel">
-            <ThreeArtifact
-              key={place.id}
-              place={place}
-              discovered={isCollected}
-              casting={casting}
-              onDiscover={handleCollect}
-              onSolve={handleSolve}
-              house={houseId}
-              trial={wandTrial}
-            />
-            <div className="artifact-caption">
+          {/* Abajo: la página del diario a la izquierda y la instrucción a la
+              derecha (en el celular, una arriba de la otra). */}
+          <div className="hud-bottom">
+          <div
+            className={`diary-page ${isCollected ? "found" : ""}`}
+            aria-live="polite"
+          >
+            <small>{itemTypeLabels[place.item.type]}</small>
+            <strong>
+              {isCollected ? place.item.label : "Todavía en blanco"}
+              {isCollected && itemDetail && <span>{itemDetail}</span>}
+            </strong>
+          </div>
+
+          <div className="artifact-caption hud">
+            {isCollected ? (
               <p>
-                {isCollected
-                  ? nextPlace
-                    ? `Listo. El diario ya marca el camino a ${nextPlace.label}.`
-                    : "Listo. No queda ningún lugar por recorrer."
-                  : place.instruction}
+                {nextPlace
+                  ? `Listo. El diario ya marca el camino a ${nextPlace.label}.`
+                  : "Listo. No queda ningún lugar por recorrer."}
               </p>
-              {!isCollected && (
+            ) : awaitingSpell && spell.once ? (
+              <div className="spell-prompt">
+                <SpellGlyph points={spell.gesture.points} label={`Forma de ${spell.incantation}: ${spell.gesture.shape}`} />
+                <p>{spell.prompt}</p>
+              </div>
+            ) : (
+              <p>{place.instruction}</p>
+            )}
+            {!isCollected && spell && !spell.once && (
+              <div className="spell-prompt is-small">
+                <SpellGlyph points={spell.gesture.points} label={`Forma de ${spell.incantation}: ${spell.gesture.shape}`} />
+                <p>{spell.prompt}</p>
+              </div>
+            )}
+            {hintHere && (
+              <p className="spell-hint" role="status">
+                {hintHere}
+              </p>
+            )}
+            {!isCollected && usesDialog && (
+              <button onClick={handleCollect}>{alternativeLabel}</button>
+            )}
+            {/* Alternativa accesible a la escena 3D: resuelve el lugar con un botón. */}
+            {!isCollected && !usesDialog && (
+              <details className="hud-alt">
+                <summary>Resolver sin la escena 3D</summary>
                 <button onClick={handleCollect} disabled={casting}>
                   {alternativeLabel}
                 </button>
-              )}
-              {isCollected && nextPlace && (
-                <button onClick={() => openPlace(nextPlace.id)}>
-                  Ir a {nextPlace.label}
-                </button>
-              )}
-            </div>
+              </details>
+            )}
+            {isCollected && nextPlace && (
+              <button onClick={() => openPlace(nextPlace.id)}>
+                Ir a {nextPlace.label}
+              </button>
+            )}
+          </div>
           </div>
         </section>
-
-        <footer className="footer-bar">
-          <span>Programación Multimedial III, UMAI</span>
-        </footer>
-        </>
       )}
 
       {completionOpen && (

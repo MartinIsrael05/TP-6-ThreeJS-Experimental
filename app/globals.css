@@ -281,65 +281,73 @@ button { color: inherit; font: inherit; }
   to { opacity: 1; filter: blur(0); }
 }
 
-/* Lugar del castillo */
+/* Lugar del castillo: la escena ocupa toda la pantalla y el resto flota
+   encima en paneles de vidrio ahumado (.hud). */
 
-.place-layout {
-  min-height: 100svh;
-  display: grid;
-  grid-template-columns: 230px minmax(320px, 0.9fr) minmax(420px, 1.25fr);
-  padding: 84px 28px 56px;
+.castle { position: relative; min-height: 100svh; }
+.stage { position: fixed; z-index: 1; inset: 0; }
+.three-stage { width: 100%; height: 100svh; }
+.three-stage canvas { display: block; width: 100%; height: 100%; }
+
+.hud {
+  position: fixed;
+  z-index: 6;
+  border: 1px solid var(--linea);
+  background: color-mix(in srgb, var(--tinta) 68%, transparent);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
-.place-layout > * { min-width: 0; }
 
-.place-nav { align-self: center; position: relative; z-index: 6; }
-.place-nav ol { margin: 0; padding: 0; list-style: none; border-left: 1px solid var(--linea); }
+/* Mapa: una píldora arriba al centro con los seis lugares. */
+.place-nav {
+  top: 78px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 8px 4px 4px;
+  border-radius: 999px;
+  transform: translateX(-50%);
+}
+.place-nav ol { display: flex; margin: 0; padding: 0; list-style: none; }
 
 .place-nav li button {
   position: relative;
-  width: 100%;
-  min-height: 60px;
-  display: grid;
-  grid-template-columns: 2.2rem 1fr 10px;
+  min-height: 40px;
+  display: flex;
   align-items: center;
   gap: 8px;
   border: 0;
-  padding: 8px 14px;
+  border-radius: 999px;
+  padding: 6px 12px;
   background: none;
   color: var(--ceniza);
-  font-size: 0.98rem;
-  line-height: 1.3;
-  text-align: left;
+  font-size: 0.92rem;
+  line-height: 1.2;
+  white-space: nowrap;
   cursor: pointer;
-  transition: color 0.2s;
+  transition: color 0.2s, background-color 0.2s;
 }
+.place-nav li button span { display: none; }
 .place-nav li button:hover:not(:disabled) { color: var(--pergamino); }
 .place-nav li button:disabled { cursor: not-allowed; opacity: 0.42; }
-.place-nav li button.active { color: var(--pergamino); }
-.place-nav li button.active::before {
-  content: "";
-  position: absolute;
-  left: -1px;
-  top: 14px;
-  bottom: 14px;
-  width: 2px;
-  background: var(--luz-suave);
-  box-shadow: 0 0 10px var(--luz);
-}
+.place-nav li button.active { color: var(--pergamino); background: color-mix(in srgb, var(--luz) 22%, transparent); }
+.place-nav li button.active span { display: inline; }
 
 .place-nav b { font-family: var(--titulo); font-size: 0.8rem; font-weight: 500; }
 
 .place-nav i { width: 9px; height: 9px; border-radius: 50%; border: 1px solid currentColor; }
 .place-nav [data-state="done"] i { border-color: var(--dorado); background: var(--dorado); }
-.place-nav [data-state="locked"] i { width: 5px; height: 5px; justify-self: center; }
+.place-nav [data-state="locked"] i { width: 5px; height: 5px; }
 
 .reset-progress {
-  margin: 22px 0 0 14px;
   border: 0;
-  padding: 4px 0;
+  padding: 4px 6px;
   background: none;
   color: var(--vino-claro);
-  font-size: 0.92rem;
+  font-size: 0.85rem;
   font-style: italic;
+  white-space: nowrap;
   text-decoration: underline;
   text-decoration-color: color-mix(in srgb, var(--vino-claro) 40%, transparent);
   text-underline-offset: 4px;
@@ -347,60 +355,90 @@ button { color: inherit; font: inherit; }
 }
 .reset-progress:hover { text-decoration-color: currentColor; }
 
-.narrative { align-self: center; position: relative; z-index: 6; max-width: 36rem; padding: 40px clamp(24px, 4vw, 64px); }
+/* Relato: arriba a la izquierda, se pliega al empezar a jugar. */
+.narrative {
+  top: 136px;
+  left: 24px;
+  width: min(25rem, calc(100vw - 48px));
+  max-height: calc(100svh - 330px);
+  overflow-y: auto;
+  padding: 20px 24px 16px;
+  border-left: 2px solid var(--luz-suave);
+}
+.narrative.is-collapsed { padding-bottom: 12px; }
 
-.place-eyebrow { margin: 0 0 14px; color: var(--luz-suave); font-style: italic; }
+.place-eyebrow { margin: 0 0 8px; color: var(--luz-suave); font-size: 0.95rem; font-style: italic; }
 
 .narrative h2 {
   margin: 0;
   font-family: var(--titulo);
-  font-size: clamp(1.75rem, 2.7vw, 2.6rem);
+  font-size: clamp(1.3rem, 1.9vw, 1.85rem);
   font-weight: 500;
-  line-height: 1.14;
+  line-height: 1.16;
   letter-spacing: 0.01em;
   text-wrap: balance;
 }
+.narrative.is-collapsed h2 { font-size: 1.1rem; }
 
 .place-copy {
-  max-width: 34em;
-  margin: 24px 0 34px;
-  color: color-mix(in srgb, var(--pergamino) 84%, transparent);
-  font-size: 1.15rem;
-  line-height: 1.7;
+  margin: 14px 0 0;
+  color: color-mix(in srgb, var(--pergamino) 86%, transparent);
+  font-size: 1.04rem;
+  line-height: 1.65;
 }
+
+.story-toggle {
+  margin-top: 10px;
+  border: 0;
+  padding: 2px 0;
+  background: none;
+  color: var(--ceniza);
+  font-size: 0.88rem;
+  font-style: italic;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+}
+.story-toggle:hover { color: var(--luz-suave); }
+
+/* Franja de abajo: la página del diario y la instrucción. La franja no
+   recibe eventos (la escena sigue tocable entre los dos); sus hijos sí. */
+.hud-bottom {
+  position: fixed;
+  z-index: 6;
+  left: 24px;
+  right: 24px;
+  bottom: 24px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+}
+.hud-bottom > * { pointer-events: auto; }
+.hud-bottom .hud { position: relative; }
 
 /* La página del diario: papel arrancado, en blanco hasta que se consigue el ítem. */
 .diary-page {
-  max-width: 22rem;
-  padding: 26px 26px 22px;
+  width: min(19rem, 100%);
+  padding: 22px 22px 18px;
   background: linear-gradient(172deg, var(--papel) 0%, var(--papel-sombra) 100%);
   color: #8a7a5c;
   transform: rotate(-1.4deg);
   clip-path: polygon(0 7%, 5% 2%, 11% 6%, 18% 1%, 26% 5%, 33% 0, 41% 4%, 50% 1%, 58% 6%, 66% 2%, 74% 5%, 83% 0, 91% 4%, 100% 2%, 100% 100%, 0 100%);
-  opacity: 0.72;
+  opacity: 0.8;
   transition: opacity 0.4s;
 }
-.diary-page small { display: block; margin-bottom: 4px; font-size: 0.9rem; font-style: italic; }
-.diary-page strong { font-family: var(--titulo); font-size: 1.1rem; font-weight: 500; }
+.diary-page small { display: block; margin-bottom: 4px; font-size: 0.86rem; font-style: italic; }
+.diary-page strong { font-family: var(--titulo); font-size: 1rem; font-weight: 500; }
 .diary-page.found { opacity: 1; color: var(--tinta-papel); }
 .diary-page.found strong { display: block; animation: ink-in 0.9s ease-out both; }
 
-/* Escena 3D */
-
-.artifact-panel { position: relative; min-width: 0; }
-.three-stage { width: 100%; height: calc(100svh - 140px); min-height: 460px; }
-.three-stage canvas { display: block; width: 100%; height: 100%; }
-
+/* Instrucción y acciones: abajo a la derecha. */
 .artifact-caption {
-  position: absolute;
-  z-index: 6;
-  right: 24px;
-  bottom: 36px;
-  width: min(300px, 85%);
+  width: min(340px, 100%);
   border-left: 2px solid var(--luz-suave);
-  padding: 12px 16px 14px;
-  background: color-mix(in srgb, var(--tinta) 80%, transparent);
-  backdrop-filter: blur(6px);
+  padding: 14px 18px 16px;
 }
 .artifact-caption p { margin: 0 0 12px; font-size: 1rem; line-height: 1.5; }
 .artifact-caption button {
@@ -415,6 +453,41 @@ button { color: inherit; font: inherit; }
   transition: background-color 0.2s, color 0.2s;
 }
 .artifact-caption button:hover { background: var(--luz-suave); color: var(--tinta); }
+.artifact-caption button:disabled { cursor: wait; opacity: 0.5; }
+
+/* Arrastrar sobre la escena dibuja, no mueve la página. */
+.stage { touch-action: none; }
+.spell-canvas { position: absolute; z-index: 2; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* Guía del hechizo: la forma se dibuja sola, una y otra vez. */
+.spell-prompt { display: grid; grid-template-columns: 64px 1fr; align-items: center; gap: 14px; margin-bottom: 12px; }
+.spell-prompt p { margin: 0; }
+.spell-prompt.is-small { grid-template-columns: 40px 1fr; gap: 10px; margin-top: 4px; }
+.spell-prompt.is-small p { color: var(--ceniza); font-size: 0.9rem; }
+.spell-glyph { width: 100%; height: auto; overflow: visible; }
+.spell-glyph path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.spell-glyph-ghost { stroke: var(--linea); stroke-width: 5; }
+.spell-glyph-trace {
+  stroke: var(--luz-suave);
+  stroke-width: 6;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 4px var(--luz-suave));
+  animation: glyph-trace 2.4s ease-in-out infinite;
+}
+.spell-glyph circle { fill: var(--luz-suave); }
+@keyframes glyph-trace {
+  0% { stroke-dashoffset: 1; }
+  65%, 100% { stroke-dashoffset: 0; }
+}
+.spell-hint { color: var(--vino-claro); font-style: italic; }
+.artifact-caption .spell-hint { margin-top: -4px; }
+
+/* Alternativa accesible: plegada para no tentar, a un toque de distancia. */
+.hud-alt { margin-top: 4px; }
+.hud-alt summary { width: fit-content; color: var(--ceniza); font-size: 0.86rem; font-style: italic; cursor: pointer; }
+.hud-alt summary:hover { color: var(--luz-suave); }
+.hud-alt[open] summary { margin-bottom: 10px; }
 
 /* Feedback al conseguir un ítem: un destello cálido del color del lugar. */
 .is-flashing::after {
@@ -716,19 +789,19 @@ button { color: inherit; font: inherit; }
   .progress-count { display: none; }
   .sound-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
-  .place-layout { grid-template-columns: minmax(0, 1fr); padding: 68px 16px 56px; }
+  .place-nav { top: 58px; left: 8px; right: 8px; gap: 4px; justify-content: space-between; transform: none; }
+  .place-nav ol { flex: 1; justify-content: space-between; overflow-x: auto; }
+  .place-nav li button { min-height: 40px; gap: 5px; padding: 6px 7px; }
+  .place-nav li button.active span { display: none; }
+  .reset-progress { font-size: 0.78rem; }
 
-  .place-nav { display: flex; align-items: center; gap: 8px; align-self: start; }
-  .place-nav ol { display: flex; flex: 1; overflow-x: auto; border-left: 0; border-bottom: 1px solid var(--linea); }
-  .place-nav li { flex: 1; }
-  .place-nav li button { min-height: 48px; grid-template-columns: auto auto; justify-content: center; padding: 8px 6px; }
-  .place-nav li button span { display: none; }
-  .place-nav li button.active::before { left: 8px; right: 8px; top: auto; bottom: -1px; width: auto; height: 2px; }
-  .reset-progress { margin: 0; font-size: 0.85rem; white-space: nowrap; }
+  .narrative { top: 110px; left: 8px; width: calc(100vw - 16px); max-height: 40svh; padding: 14px 16px 10px; }
+  .place-copy { font-size: 0.98rem; }
 
-  .narrative { padding: 30px 4px 0; }
-  .three-stage { height: 420px; min-height: 0; }
-  .artifact-caption { position: relative; right: auto; bottom: auto; width: auto; margin-top: -4px; }
+  .hud-bottom { left: 8px; right: 8px; bottom: 8px; flex-direction: column; align-items: stretch; gap: 8px; }
+  .diary-page { width: auto; padding: 14px 16px 10px; transform: none; }
+  .diary-page:not(.found) { display: none; }
+  .artifact-caption { width: auto; }
   .footer-bar { display: none; }
   .prologue-skip { right: 16px; bottom: 16px; }
   .auth-panel { padding: 30px 20px 24px; }
