@@ -19,6 +19,7 @@ import AuthPanel from "@/components/AuthPanel";
 import SortingHatDialog from "@/components/SortingHatDialog";
 import SoundToggle from "@/components/SoundToggle";
 import ThreeArtifact from "@/components/ThreeArtifact";
+import WandCursor from "@/components/WandCursor";
 import WandDialog from "@/components/WandDialog";
 
 // Lugares que se resuelven con un diálogo HTML en lugar de marcarse directo.
@@ -175,6 +176,7 @@ export default function Experience({ initialPlaceId }) {
       style={{ "--luz": place.color, "--luz-suave": place.accent }}
     >
       <div className="candlelight" aria-hidden="true" />
+      <WandCursor />
 
       {!entered && (
         <section className="intro" aria-labelledby="intro-title">

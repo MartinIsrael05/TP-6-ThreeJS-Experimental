@@ -9,13 +9,16 @@ import { createDust } from "@/components/scenes/great-hall/dust";
 import { createEnchantedCeiling } from "@/components/scenes/great-hall/enchantedCeiling";
 import { buildHall, HALL } from "@/components/scenes/great-hall/hall";
 import { createSortingHat } from "@/components/scenes/great-hall/sortingHat";
+import { playSfx } from "@/lib/audio/sfx";
 import { createComposer } from "@/lib/three/postprocessing";
+import { createSparks } from "@/lib/three/sparks";
 
 const FOG_COLOR = "#1b130d";
 const CAMERA_POSITION = new THREE.Vector3(0, 2.6, -9);
 const CAMERA_TARGET = new THREE.Vector3(0, 2.1, -30);
 // Cuánto se corre la cámara con el puntero (paralaje), en metros.
 const PARALLAX = new THREE.Vector2(0.45, 0.22);
+const UP = new THREE.Vector3(0, 1, 0);
 
 // Luces reales: pocas y cálidas. El resto de la luz lo dan las velas con
 // emissive y bloom.
@@ -107,16 +110,25 @@ function setupGreatHall(ctx) {
   listen(renderer.domElement, "pointermove", (event) => {
     readPointer(event);
     hovered = pointsAtHat();
-    renderer.domElement.style.cursor = hovered ? "pointer" : "default";
+    renderer.domElement.style.cursor = hovered ? "pointer" : "";
   });
   listen(renderer.domElement, "pointerleave", () => {
     pointer.set(0, 0);
     hovered = false;
   });
   // Abre el mismo diálogo que el botón "Ponerme el Sombrero" de Experience.
+  // Chispas que salen del Sombrero al tocarlo y cuando anuncia la casa.
+  const sparks = createSparks({ max: 300, size: 0.12 });
+  scene.add(sparks.points);
+  const hatTip = sortingHat.group.position.clone().add(new THREE.Vector3(0, 1.4, 0));
+  let wasDiscovered = props.current.discovered;
+
   listen(renderer.domElement, "click", (event) => {
     readPointer(event);
-    if (pointsAtHat()) props.current.onDiscover();
+    if (!pointsAtHat()) return;
+    sparks.emit(hatTip, { count: 50, speed: 2.2 });
+    playSfx("spell");
+    props.current.onDiscover();
   });
 
   // Colores de la casa: los estandartes pasan todos a su color y las llamas
@@ -154,12 +166,19 @@ function setupGreatHall(ctx) {
       }
 
       if (props.current.house !== appliedHouse) applyHouse(props.current.house ?? null);
+      // Al cerrar el diálogo con la casa elegida, el Sombrero festeja con
+      // chispas del color de la casa. Al cargar ya resuelto no festeja.
+      if (props.current.discovered && wasDiscovered === false && appliedHouse) {
+        sparks.emit(hatTip, { count: 160, speed: 4, color: getHouse(appliedHouse).accent, lifetime: 1.6, direction: UP });
+      }
+      wasDiscovered = props.current.discovered;
       const blend = delta > 0 ? 1 - Math.exp(-delta * 2.5) : 1;
       bannerMaterials.forEach((material, index) => material.color.lerp(bannerTargets[index], blend));
 
       ceiling.update(elapsed);
       candles.update(elapsed, delta);
       dust.update(elapsed, delta);
+      sparks.update(delta);
       sortingHat.update({ elapsed, delta, highlight: hovered ? 1 : 0, idle: !props.current.discovered });
 
       // Titileo de las luces: dos senos desfasados por luz, sin azar por
