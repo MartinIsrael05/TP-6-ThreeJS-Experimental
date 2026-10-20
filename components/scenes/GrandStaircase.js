@@ -201,7 +201,12 @@ function setupStaircase(ctx) {
     }
     if (flight.t < 1) return;
     drag = { flight, startX: event.clientX, startAngle: flight.group.rotation.y, moved: false, quarter: 0 };
-    renderer.domElement.setPointerCapture?.(event.pointerId);
+    // La mano manda punteros virtuales, que no se pueden capturar.
+    try {
+      renderer.domElement.setPointerCapture(event.pointerId);
+    } catch {
+      // El puntero virtual ya sigue al elemento donde empezó.
+    }
   });
 
   pointer.onMove((event) => {

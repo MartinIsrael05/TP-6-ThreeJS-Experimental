@@ -15,6 +15,7 @@ import { useProgress } from "@/hooks/useProgress";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
 import AuthPanel from "@/components/AuthPanel";
+import HandControl from "@/components/HandControl";
 import Prologue from "@/components/Prologue";
 import SortingHatDialog from "@/components/SortingHatDialog";
 import SoundToggle from "@/components/SoundToggle";
@@ -269,6 +270,7 @@ export default function Experience({ initialPlaceId }) {
           Hogwarts
         </button>
         <div className="status">
+          <HandControl />
           <SoundToggle />
           <span
             className={`persistence is-${persistence}`}
