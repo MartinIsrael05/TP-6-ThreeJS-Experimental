@@ -46,15 +46,19 @@ app/                      rutas (App Router), layout con metadata y fuentes, est
   page.js                 portada: el prólogo
   castillo/[lugar]/       ruta dinámica de cada lugar (generateStaticParams, metadata, notFound)
   loading.js, error.js, not-found.js   estados de carga, error y 404
-components/               Experience (estado narrativo), ThreeArtifact (elige la escena), AuthPanel, diálogos
+components/               Experience (estado narrativo), ThreeArtifact (elige la escena), paneles flotantes (*Hud), AuthPanel
   scenes/                 una escena 3D por lugar (Artifact es la genérica); piezas en scenes/<lugar>/
 data/                     lugares, casas, preguntas del Sombrero, varitas y hechizos
 hooks/useProgress.js      progreso local + Firebase (auth y Firestore) + estado nube/local/offline
 hooks/useThreeScene.js    renderer, cámara, resize, loop, calidad adaptable y limpieza de cada escena
-lib/three/                liberar recursos, materiales PBR con respaldo y postprocesado
+hooks/useSorting.js, useWandShop.js   estado del Sombrero y de Ollivanders
+lib/three/                liberar recursos, PBR, postprocesado, chispas, puntero, cielo nocturno
+lib/audio/                audio sintetizado (ambientes, efectos) y detector de siseo del micrófono
+lib/gestures/             reconocedor de trazos de hechizos ($1) y detector de sacudidas
+lib/hands/                seguimiento de la mano con MediaPipe y puntero virtual
 lib/firebase.js           inicialización de Firebase
 firestore.rules           reglas de acceso por usuario
-public/                   modelos .glb, texturas (textures/<lugar>/), audio
+public/                   modelos (.glb y el de la mano en models/), texturas (textures/<lugar>/)
 docs/                     propuesta, plan de IA y documentación del TP
 .claude/skills/ y .agents/skills/   skills aprobadas (mismo contenido, una copia por agente)
 ```
@@ -65,6 +69,7 @@ docs/                     propuesta, plan de IA y documentación del TP
 - Toda escena Three.js vive en un Client Component dentro de `useEffect` y en el cleanup libera geometrías, materiales, texturas, render targets, listeners y el renderer.
 - `renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))` siempre. El canvas se adapta con `ResizeObserver`.
 - Toda interacción 3D necesaria para avanzar tiene una alternativa accesible con un botón HTML. Respetar `prefers-reduced-motion`.
+- Las escenas solo escuchan eventos de puntero comunes (pointermove, pointerdown, click): la mano con la cámara los simula, así que no hace falta código aparte para ella.
 - El contenido narrativo vive en `data/`, no hardcodeado en componentes.
 - Los textos visibles van en español rioplatense (vos, tenés). Nada de guiones largos en los textos.
 - Las skills de Three.js pueden mostrar APIs viejas: antes de importar algo de `three/addons/...`, verificá que exista en `node_modules/three/examples/jsm/` y que no esté marcado como deprecado.

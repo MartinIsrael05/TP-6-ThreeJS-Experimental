@@ -9,19 +9,19 @@ Resumen del documento "Hogwarts: propuesta, ideas y plan de trabajo" (14/10/2026
 - **Coleccionables:** las páginas arrancadas del diario. Cada lugar del castillo esconde una.
 - **Desbloqueo:** cada página revela el próximo lugar en el mapa. Con todas, se abre la Cámara.
 - **Decisión persistida:** la casa que asigna el Sombrero cambia colores, textos y el final.
-- **Mecánica unificada:** la varita es la herramienta de interacción en todo el sitio (Lumos, Alohomora, Revelio).
+- **Mecánica unificada:** la varita es la herramienta de interacción en todo el sitio. Es el mouse, el dedo o la mano frente a la cámara (MediaPipe), y los hechizos se lanzan dibujando su forma en la escena: triángulo para Lumos, círculo para Alohomora, zeta para Accio.
 
 ## Recorrido
 
 | Momento | Lugar | Interacción | Resultado |
 | --- | --- | --- | --- |
 | Inicio | Prólogo | Llegada en bote con scroll; carta de Hogwarts como login | Entrás al castillo |
-| Decisión | Gran Comedor | Sombrero seleccionador | Se guarda la casa |
-| Herramienta | Ollivanders o aula | La varita te elige; aprendés los hechizos | Se guarda la varita |
-| Página 1 | Escaleras giratorias | Rotar tramos hasta alinear el camino | Página del diario |
-| Página 2 | Pasillo del 2º piso | Lumos revela el mensaje escrito en la pared | Página del diario |
-| Página 3 | Campo de Quidditch | Atrapar la snitch | Página del diario |
-| Cierre | Cámara de los Secretos | Hablar pársel para entrar | Final según la casa |
+| Decisión | Gran Comedor | Las respuestas del Sombrero flotan como pergaminos y se eligen señalándolas | Se guarda la casa |
+| Herramienta | Ollivanders | Sacar cajas, agitar cada varita y ver cómo reacciona la tienda; aprendés las formas de los hechizos | Se guarda la varita |
+| Página 1 | Escaleras giratorias | Dibujar Alohomora para soltarlas y arrastrar los tramos hasta alinear el camino | Página del diario |
+| Página 2 | Pasillo del 2º piso | Dibujar Lumos y barrer la pared con la luz hasta leer el mensaje | Página del diario |
+| Página 3 | Campo de Quidditch | Atrapar la snitch; Accio dibujado la acerca un momento | Página del diario |
+| Cierre | Cámara de los Secretos | Repetir el patrón de la puerta siseando al micrófono (o con la barra espaciadora) | Final según la casa |
 
 ## Ideas, ordenadas
 

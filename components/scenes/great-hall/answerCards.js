@@ -95,7 +95,7 @@ export function createAnswerCards({ hatPosition }) {
         card.home.set((index - 1.5) * 2.55, 2.5 + (index % 2) * 0.35, -15.5 - Math.abs(index - 1.5) * 0.6);
       } else {
         card.base = 0.6;
-        card.home.set((index % 2 === 0 ? -1 : 1) * 0.76, 3.15 - Math.floor(index / 2) * 0.95, -15.7);
+        card.home.set((index % 2 === 0 ? -1 : 1) * 0.76, 2.95 - Math.floor(index / 2) * 0.95, -15.7);
       }
     });
   }
