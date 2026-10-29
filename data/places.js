@@ -20,7 +20,19 @@ export const prologue = {
     "Seguilas por el castillo y llegá a la Cámara de los Secretos antes de que vuelva a abrirse.",
   ],
   cta: "Abrir el diario",
+  resume: (label) => `Seguir en ${label}`,
   note: "Mejor con auriculares y la luz baja.",
+  // Cartel de la transición al volver a la portada.
+  returnCard: { label: "Lago Negro", eyebrow: "De vuelta en el bote", color: "#4a6fa5" },
+};
+
+// Lugar al que se llegó por la URL antes de que el diario lo revelara.
+export const lockedPlace = {
+  eyebrow: "Página en blanco",
+  title: "Este lugar todavía no aparece en tu mapa.",
+  copy: (missing) => `El diario revela cada lugar cuando conseguís lo que esconde el anterior. Antes tenés que pasar por ${missing}.`,
+  back: (label) => `Ir a ${label}`,
+  map: "Abrir el mapa",
 };
 
 // Textos del panel de pársel en la Cámara. status va por estado del juego.
@@ -38,6 +50,29 @@ export const parsel = {
   replay: "Volver a escuchar",
 };
 
+// Textos del panel de la capa en la Sala de trofeos. status va por estado
+// del juego (lo cuenta la escena).
+export const cloak = {
+  title: "Capa de invisibilidad",
+  start: "Empezar a cruzar",
+  status: {
+    ready: "Filch está de espaldas. Cuando empieces, vas a caminar solo.",
+    away: "Filch está de espaldas. Avanzá en puntas de pie.",
+    turning: "¡Filch se da vuelta! Cubrite con la capa.",
+    looking: "La linterna barre la sala. Quedate bajo la capa.",
+    caught: "Señora Norris te vio. Volvés a la última armadura.",
+    done: "Llegaste al otro lado sin que te vieran.",
+  },
+  covered: "Bajo la capa",
+  uncovered: "A la vista",
+  camera: "Cubrirme con las manos",
+  cameraOn: "Tapate la cara con las dos manos",
+  cameraHands: (count) => (count === 2 ? "Veo tus dos manos" : count === 1 ? "Veo una mano" : "No veo tus manos"),
+  cameraError: "Sin cámara: usá el botón",
+  hold: "Mantené para cubrirte",
+  distance: "Distancia hasta la puerta",
+};
+
 export const ending = {
   eyebrow: "Final sin casa",
   title: "Cerraste el diario antes que él.",
@@ -48,6 +83,7 @@ export const ending = {
 export const itemTypeLabels = {
   decision: "Una decisión",
   pagina: "Una página arrancada",
+  sigilo: "Un paso a escondidas",
   final: "El cierre",
 };
 
@@ -124,8 +160,21 @@ export const places = [
     item: { id: "pagina-3", type: "pagina", label: "Tercera página del diario" },
   },
   {
-    id: "camara",
+    id: "trofeos",
     number: "06",
+    label: "Sala de trofeos",
+    eyebrow: "Tercer piso, pasada la medianoche",
+    title: "Filch hace la ronda y Señora Norris no duerme nunca.",
+    copy: "Con las tres páginas, el diario marca el camino al baño clausurado, pero antes hay que cruzar la Sala de trofeos. Esta noche apareció sobre tu cama una capa plateada con una nota: «Usala bien». Cuando la linterna de Filch gire hacia vos, desaparecé.",
+    instruction: "Caminás solo. Cuando Filch se dé vuelta, cubrite con la capa: tapate la cara con las dos manos frente a la cámara, o mantené apretada la barra espaciadora o el botón.",
+    action: "Pasar bajo la capa",
+    color: "#8a94a6",
+    accent: "#d6dde8",
+    item: { id: "capa", type: "sigilo", label: "Cruzaste sin que te vieran" },
+  },
+  {
+    id: "camara",
+    number: "07",
     label: "Cámara de los Secretos",
     eyebrow: "Debajo del castillo",
     title: "La puerta solo se abre si le hablás como a una serpiente.",

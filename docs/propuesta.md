@@ -21,6 +21,7 @@ Resumen del documento "Hogwarts: propuesta, ideas y plan de trabajo" (14/10/2026
 | Página 1 | Escaleras giratorias | Dibujar Alohomora para soltarlas y arrastrar los tramos hasta alinear el camino | Página del diario |
 | Página 2 | Pasillo del 2º piso | Dibujar Lumos y barrer la pared con la luz hasta leer el mensaje | Página del diario |
 | Página 3 | Campo de Quidditch | Atrapar la snitch; Accio dibujado la acerca un momento | Página del diario |
+| Sigilo | Sala de trofeos | Caminar mientras Filch está de espaldas y cubrirse con la capa cuando se da vuelta: las dos manos frente a la cara (cámara), o la barra espaciadora o un botón | Paso a escondidas |
 | Cierre | Cámara de los Secretos | Repetir el patrón de la puerta siseando al micrófono (o con la barra espaciadora) | Final según la casa |
 
 ## Ideas, ordenadas
@@ -34,6 +35,10 @@ Resumen del documento "Hogwarts: propuesta, ideas y plan de trabajo" (14/10/2026
 | Landing con scroll hasta Hogwarts | Sí, achicada: llegada en bote con siluetas, niebla y luces |
 | Quidditch | Reducido a atrapar la snitch |
 | Ajedrez gigante | Bonus como mucho (mate en una jugada) |
+
+**Mapa del Merodeador (hecho):** pergamino con el castillo en tinta, el recorrido que el diario ya reveló, tus huellas y tu nombre donde estás, y Filch, Señora Norris, Peeves y Riddle moviéndose. Se abre desde la barra (o con la tecla M) después del juramento, y al pasar al siguiente lugar o al entrar desde el prólogo las huellas caminan hasta el destino. Textos y coordenadas en `data/map.js`.
+
+**Diario (hecho):** `/diario/[pagina]` muestra las tres páginas arrancadas; la tinta aparece si ya conseguiste la página y si no te dice dónde buscarla. Textos en `data/diary.js`. El diagrama de rutas está en [navegacion.md](navegacion.md).
 
 Ideas sumadas: Mapa del Merodeador como navegación ("Juro solemnemente..." / "Travesura realizada"), el diario como segunda ruta dinámica (`/diario/[pagina]`), relojes de arena de puntos como progreso, persistencia dentro del mundo (Lechuza enviada / Pergamino local / Sin lechuzas), login como carta de Hogwarts, shader o partículas de hechizos como recurso propio.
 
@@ -75,8 +80,8 @@ Implementado en la Fase 2 (`hooks/useProgress.js`) y validado en `firestore.rule
 | `house` | string o null | `gryffindor`, `hufflepuff`, `ravenclaw`, `slytherin` (`data/houses.js`) |
 | `wand` | string o null | `sauce-unicornio`, `cerezo-dragon`, `nogal-fenix`, `abedul-unicornio` (`data/wands.js`) |
 | `spells` | lista | Hasta 3, sin repetir: `lumos`, `alohomora`, `accio` (`data/spells.js`) |
-| `items` | lista | Hasta 6, sin repetir: `sombrero`, `varita`, `pagina-1`, `pagina-2`, `pagina-3`, `camara-abierta` (`data/places.js`) |
-| `currentPlace` | string o null | Uno de los 6 lugares de `data/places.js` |
+| `items` | lista | Hasta 7, sin repetir: `sombrero`, `varita`, `pagina-1`, `pagina-2`, `pagina-3`, `capa`, `camara-abierta` (`data/places.js`) |
+| `currentPlace` | string o null | Uno de los 7 lugares de `data/places.js` |
 | `ending` | string o null | Igual a `house`, y solo cuando `items` incluye `camara-abierta` |
 | `updatedAt` | timestamp | Lo pone el servidor con `serverTimestamp()` |
 

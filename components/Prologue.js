@@ -12,7 +12,8 @@ const STOPS = [0, 0.16, 0.4, 0.64, 0.86];
 // queda fija (sticky) y el scroll solo cambia el avance. El avance va en una
 // ref para que la escena lo lea en cada frame sin renderizar React; el tramo
 // visible sí es estado, y cambia pocas veces.
-export default function Prologue({ onEnter }) {
+// resumeLabel: el lugar donde quedaste, si ya habías entrado antes.
+export default function Prologue({ onEnter, resumeLabel }) {
   const sectionRef = useRef(null);
   const progressRef = useRef(0);
   const [stage, setStage] = useState(0);
@@ -56,7 +57,7 @@ export default function Prologue({ onEnter }) {
           ))}
           <div className="prologue-beat is-final" data-active={stage === last}>
             <button className="enter-button" onClick={onEnter}>
-              {prologue.cta}
+              {resumeLabel ? prologue.resume(resumeLabel) : prologue.cta}
             </button>
             <p className="intro-note">{prologue.note}</p>
           </div>

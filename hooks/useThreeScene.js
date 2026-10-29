@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { disposeComposer, disposeObject } from "@/lib/three/dispose";
+import { markSceneReady } from "@/lib/transition";
 
 // Calidad adaptable: después de que la escena arranca (shaders compilados,
 // texturas subidas) se miden los FPS. Si no llegan al mínimo, se apaga el
@@ -111,6 +112,7 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
     let sampleFrames = 0;
     let sampleTime = 0;
     let sampled = false;
+    let shown = false;
     let frameId = 0;
 
     function frame(timestamp) {
@@ -126,6 +128,11 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
       api.update?.({ elapsed: animTime, delta: reducedMotion ? 0 : delta, reducedMotion });
       if (composer) composer.render(delta);
       else renderer.render(scene, camera);
+      // Primer cuadro dibujado: si hay una transición tapando, ya se puede levantar.
+      if (!shown) {
+        shown = true;
+        markSceneReady();
+      }
 
       if (sampled) return;
       const elapsed = timer.getElapsed();

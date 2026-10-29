@@ -1,4 +1,5 @@
 import { Cinzel, EB_Garamond } from "next/font/google";
+import PlaceVeil from "@/components/PlaceVeil";
 import { siteName } from "@/data/places";
 import "./globals.css";
 
@@ -29,7 +30,10 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es" className={`${cinzel.variable} ${garamond.variable}`}>
-      <body>{children}</body>
+      <body>
+        {children}
+        <PlaceVeil />
+      </body>
     </html>
   );
 }
