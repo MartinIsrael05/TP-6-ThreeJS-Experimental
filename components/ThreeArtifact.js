@@ -5,6 +5,7 @@ import GrandStaircase from "@/components/scenes/GrandStaircase";
 import GreatHall from "@/components/scenes/GreatHall";
 import Ollivanders from "@/components/scenes/Ollivanders";
 import Quidditch from "@/components/scenes/Quidditch";
+import Trophies from "@/components/scenes/Trophies";
 
 // Escena propia de cada lugar. Los que no figuran usan el artefacto genérico.
 const SCENES = {
@@ -13,6 +14,7 @@ const SCENES = {
   escaleras: GrandStaircase,
   pasillo: Corridor,
   quidditch: Quidditch,
+  trofeos: Trophies,
   camara: Chamber,
 };
 
