@@ -145,6 +145,9 @@ export function useProgress() {
   const [progress, setProgress] = useState(EMPTY_PROGRESS);
   const progressRef = useRef(EMPTY_PROGRESS);
   const [ready, setReady] = useState(false);
+  // settled: ya se sabe el progreso definitivo (sin Firebase, apenas se lee
+  // el local; con Firebase, cuando termina el primer intento de sincronizar).
+  const [settled, setSettled] = useState(false);
   const [syncState, setSyncState] = useState("local");
   const [remoteUser, setRemoteUser] = useState(null);
   const remoteUserRef = useRef(null);
@@ -165,10 +168,13 @@ export function useProgress() {
       setProgress(localProgress);
       saveLocal(localProgress);
       setReady(true);
+      if (!hasFirebaseConfig) setSettled(true);
     }, 0);
 
     if (!hasFirebaseConfig) return () => window.clearTimeout(hydrateLocal);
 
+    // Sin respuesta de Firebase (sin red, por ejemplo) no se espera para siempre.
+    const giveUp = window.setTimeout(() => setSettled(true), 4000);
     const { auth, db } = getFirebaseServices();
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (!user) {
@@ -182,6 +188,7 @@ export function useProgress() {
           console.warn("No se pudo iniciar la sesion anonima.", error);
           setAuthError(error.code || "auth/anonymous-sign-in-failed");
           setSyncState("local");
+          setSettled(true);
         }
         return;
       }
@@ -209,11 +216,14 @@ export function useProgress() {
         setAuthUser(user);
         setAuthError(error.code || "firestore/sync-failed");
         setSyncState("local");
+      } finally {
+        setSettled(true);
       }
     });
 
     return () => {
       window.clearTimeout(hydrateLocal);
+      window.clearTimeout(giveUp);
       unsubscribe();
     };
   }, []);
@@ -364,6 +374,7 @@ export function useProgress() {
     persistence,
     ready,
     reset,
+    settled,
     setCurrentPlace,
     signInWithGoogle,
     spells: progress.spells,

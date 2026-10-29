@@ -67,6 +67,29 @@ function armorGeometry() {
   return mergeGeometries(parts);
 }
 
+// Lo que se ve del otro lado de la puerta: niebla clara en el centro que se
+// pierde en la oscuridad hacia los bordes, con el reflejo de un piso mojado.
+function createMistTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = 64;
+  canvas.height = 128;
+  const context = canvas.getContext("2d");
+  const mist = context.createRadialGradient(32, 70, 4, 32, 70, 70);
+  mist.addColorStop(0, "#ffffff");
+  mist.addColorStop(0.45, "#5c6f66");
+  mist.addColorStop(1, "#000000");
+  context.fillStyle = mist;
+  context.fillRect(0, 0, 64, 128);
+  const floor = context.createLinearGradient(0, 100, 0, 128);
+  floor.addColorStop(0, "rgba(255, 255, 255, 0)");
+  floor.addColorStop(1, "rgba(255, 255, 255, 0.35)");
+  context.fillStyle = floor;
+  context.fillRect(0, 100, 64, 28);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function placeInstances(mesh, transforms) {
   const dummy = new THREE.Object3D();
   transforms.forEach(({ position, rotationY = 0, scale = 1 }, index) => {
@@ -195,7 +218,7 @@ export function buildRoom(ctx, { armorZ }) {
   const leaf = new THREE.Mesh(new THREE.BoxGeometry(1.3, 2.5, 0.08), wood);
   leaf.geometry.translate(0.65, 1.25, 0);
   leaf.position.set(-0.65, 0, 0.08);
-  const glowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0, 0, 0) });
+  const glowMaterial = new THREE.MeshBasicMaterial({ color: new THREE.Color(0, 0, 0), map: ctx.track(createMistTexture()) });
   const glow = new THREE.Mesh(new THREE.PlaneGeometry(1.3, 2.5).translate(0, 1.25, 0.02), glowMaterial);
   exit.add(frame, leaf, glow);
   group.add(exit);

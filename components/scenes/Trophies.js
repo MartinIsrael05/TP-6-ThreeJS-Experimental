@@ -216,7 +216,8 @@ function setupTrophies(ctx) {
       // Al llegar se abre la puerta del baño y la cámara gira hacia ella.
       const doneAmount = mode === "done" ? easeInOut(clock / DONE_SECONDS) : 0;
       room.exitLeaf.rotation.y = -doneAmount * 1.4;
-      room.exitGlow.color.setRGB(0.4 * doneAmount, 1.6 * doneAmount, 1 * doneAmount);
+      // Verde del baño de Myrtle, tenue para que el bloom no lo queme.
+      room.exitGlow.color.setRGB(0.35 * doneAmount, 0.9 * doneAmount, 0.7 * doneAmount);
       if (mode === "done" && !doneReported && clock >= DONE_SECONDS) {
         doneReported = true;
         props.current.onSolve();
@@ -228,13 +229,15 @@ function setupTrophies(ctx) {
       const shake = mode === "caught" && clock < 0.4 && !reducedMotion ? (Math.random() - 0.5) * 0.08 : 0;
       const crouch = covered ? 0.18 : 0;
       camera.position.set(
-        shake + (walking && !reducedMotion ? Math.sin(walkPhase / 2) * 0.03 : 0) + doneAmount * 1.4,
+        // Al final se corre un poco hacia la puerta, sin pegarse: se ve la
+        // puerta abierta con la sala alrededor.
+        shake + (walking && !reducedMotion ? Math.sin(walkPhase / 2) * 0.03 : 0) + doneAmount * 0.5,
         EYE_HEIGHT - crouch + bob,
-        zAt(progress) - doneAmount * 0.6,
+        zAt(progress) + doneAmount * 1.2,
       );
       const sway = reducedMotion ? 0 : 1;
       lookTarget.set(pointer.ndc.x * 1.2 * sway, EYE_HEIGHT - 0.1 + pointer.ndc.y * 0.6 * sway, camera.position.z - 6);
-      lookTarget.lerp(EXIT_LOOK, doneAmount);
+      lookTarget.lerp(EXIT_LOOK, doneAmount * 0.75);
       look.lerp(lookTarget, look.lengthSq() === 0 ? 1 : 1 - Math.exp(-(delta || 1) * 6));
       camera.lookAt(look);
 

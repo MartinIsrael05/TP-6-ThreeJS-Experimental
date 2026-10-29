@@ -1,13 +1,17 @@
 "use client"; // Estado narrativo, navegación con useRouter y eventos del usuario.
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { diaryTexts, getDiaryEntryByItem } from "@/data/diary";
 import { getHouse } from "@/data/houses";
 import {
   ending as fallbackEnding,
   itemTypeLabels,
+  lockedPlace,
   persistenceLabels,
   places,
+  prologue,
 } from "@/data/places";
 import { spells } from "@/data/spells";
 import { getWand, wandName } from "@/data/wands";
@@ -17,6 +21,7 @@ import { useWandShop } from "@/hooks/useWandShop";
 import { createShakeDetector } from "@/lib/gestures/shake";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
+import { beginTransition, markSceneReady } from "@/lib/transition";
 import { mapTexts } from "@/data/map";
 import AuthPanel from "@/components/AuthPanel";
 import CloakHud from "@/components/CloakHud";
@@ -106,6 +111,7 @@ export default function Experience({ initialPlaceId }) {
     ready,
     reset,
     setCurrentPlace,
+    settled,
     signInWithGoogle,
     submitEmail,
     wand: wandId,
@@ -146,6 +152,10 @@ export default function Experience({ initialPlaceId }) {
   const savedIndex = places.findIndex((entry) => entry.id === savedPlaceId);
   const resumePlace = savedIndex > 0 && canOpen(savedIndex) ? places[savedIndex] : null;
   const playerName = authUser && !authUser.isAnonymous && authUser.displayName ? authUser.displayName.split(" ")[0] : null;
+  // Llegaste por la URL a un lugar que el diario todavía no reveló.
+  const locked = entered && !canOpen(activeIndex) && !isCollected;
+  const lastOpenPlace = places.findLast((_, index) => canOpen(index));
+  const diaryEntry = getDiaryEntryByItem(place.item.id);
 
   useEffect(() => {
     if (!flash) return;
@@ -156,9 +166,15 @@ export default function Experience({ initialPlaceId }) {
   // authUser también es dependencia: al terminar de sincronizar con Firebase
   // el progreso remoto pisa currentPlace, y hay que volver a marcar el lugar
   // en el que estás.
+  // Un lugar bloqueado no cuenta como "donde quedaste".
   useEffect(() => {
-    if (ready && initialPlaceId) setCurrentPlace(initialPlaceId);
-  }, [ready, initialPlaceId, setCurrentPlace, authUser]);
+    if (ready && initialPlaceId && !locked) setCurrentPlace(initialPlaceId);
+  }, [ready, initialPlaceId, setCurrentPlace, authUser, locked]);
+
+  // Sin escena (lugar bloqueado) no hay primer cuadro que esperar.
+  useEffect(() => {
+    if (locked && settled) markSceneReady();
+  }, [locked, settled]);
 
   // La tecla M abre y cierra el mapa (salvo mientras escribís).
   useEffect(() => {
@@ -312,9 +328,19 @@ export default function Experience({ initialPlaceId }) {
     travelTo((resumePlace ?? places[0]).id, null);
   }
 
+  // Cambia de ruta detrás del velo de tinta, con el cartel del destino. El
+  // mapa se cierra recién cuando el velo ya tapa todo.
+  function goTo(href, card) {
+    beginTransition(card, () => {
+      setMapState(null);
+      router.push(href);
+    });
+  }
+
   function openPlace(placeId) {
+    const entry = places.find((candidate) => candidate.id === placeId);
     playSfx("whoosh");
-    router.push(`/castillo/${placeId}`);
+    goTo(`/castillo/${placeId}`, { number: entry.number, label: entry.label, eyebrow: entry.eyebrow, color: entry.color });
   }
 
   // Viaje con el mapa: se abre entintado, las huellas caminan y al llegar se
@@ -325,8 +351,8 @@ export default function Experience({ initialPlaceId }) {
 
   function arrive() {
     const to = mapState?.travel?.to;
-    setMapState(null);
     if (to) openPlace(to);
+    else setMapState(null);
   }
 
   function swear() {
@@ -344,7 +370,7 @@ export default function Experience({ initialPlaceId }) {
   }
 
   function returnToStart() {
-    router.push("/");
+    goTo("/", prologue.returnCard);
   }
 
   async function handleReset() {
@@ -352,11 +378,13 @@ export default function Experience({ initialPlaceId }) {
     try {
       await reset();
     } finally {
-      router.push("/");
+      goTo("/", prologue.returnCard);
     }
   }
 
-  if (!ready) {
+  // Lugar bloqueado al que se llegó por la URL: se espera a saber el
+  // progreso definitivo (puede llegar de la nube) antes de decidir.
+  if (!ready || (entered && locked && !settled)) {
     return (
       <main className="loading" role="status" aria-live="polite">
         <span className="loading-flame" aria-hidden="true" />
@@ -418,7 +446,21 @@ export default function Experience({ initialPlaceId }) {
         </div>
       </header>
 
-      {entered && (
+      {locked && (
+        <section className="fallback locked-place" aria-labelledby="locked-title">
+          <p className="fallback-eyebrow">{lockedPlace.eyebrow}</p>
+          <h1 id="locked-title">{lockedPlace.title}</h1>
+          <p>{lockedPlace.copy(places[activeIndex - 1].label)}</p>
+          <div className="fallback-actions">
+            <button onClick={() => openPlace(lastOpenPlace.id)}>{lockedPlace.back(lastOpenPlace.label)}</button>
+            <button className="is-quiet" onClick={() => setMapState({ travel: null })}>
+              {lockedPlace.map}
+            </button>
+          </div>
+        </section>
+      )}
+
+      {entered && !locked && (
         <section className="castle" aria-labelledby="place-title">
           {/* La escena ocupa toda la pantalla; tocarla pliega el relato. */}
           <div className="stage" onPointerDown={() => setStoryClosedFor(place.id)}>
@@ -525,6 +567,18 @@ export default function Experience({ initialPlaceId }) {
               {isCollected ? place.item.label : "Todavía en blanco"}
               {isCollected && itemDetail && <span>{itemDetail}</span>}
             </strong>
+            {isCollected && diaryEntry && (
+              <Link
+                className="diary-read"
+                href={`/diario/${diaryEntry.number}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  goTo(`/diario/${diaryEntry.number}`, { label: diaryTexts.cardLabel, eyebrow: diaryEntry.title, color: "#6d1a28" });
+                }}
+              >
+                {diaryTexts.read}
+              </Link>
+            )}
           </div>
 
           <div className="artifact-caption hud">

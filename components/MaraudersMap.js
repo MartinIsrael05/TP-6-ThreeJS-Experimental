@@ -6,9 +6,11 @@ import { MAP_SIZE, mapPlaces, mapStart, mapTexts, mapWanderers } from "@/data/ma
 const START = "start";
 // Un paso cada tantas unidades del dibujo, y cuánto tarda en aparecer cada uno.
 const STEP_EVERY = 30;
-const STEP_MS = 150;
-const MIN_TRAVEL_MS = 1800;
-const MAX_TRAVEL_MS = 3200;
+const STEP_MS = 240;
+const MIN_TRAVEL_MS = 3400;
+const MAX_TRAVEL_MS = 5000;
+// Después de llegar, el mapa se queda un rato con tu nombre en el destino.
+const ARRIVE_HOLD_MS = 1800;
 const CLOSE_MS = 650;
 
 function pointOf(id) {
@@ -103,6 +105,7 @@ const getServerReducedMotion = () => false;
 export default function MaraudersMap({ places, collected, currentId, travel, playerName, sworn, onSwear, onGo, onArrive, onClose }) {
   const reducedMotion = useSyncExternalStore(subscribeMotion, getReducedMotion, getServerReducedMotion);
   const [closing, setClosing] = useState(false);
+  const [arrived, setArrived] = useState(false);
   const firstButtonRef = useRef(null);
   const actionRef = useRef(null);
   const arrivedRef = useRef(false);
@@ -146,13 +149,19 @@ export default function MaraudersMap({ places, collected, currentId, travel, pla
     latest.current = { finishTravel, requestClose, onClose };
   });
 
-  // Viaje: cuando las huellas llegan, se entra al lugar.
+  // Viaje: cuando las huellas llegan aparece tu nombre en el destino, y un
+  // rato después se entra al lugar.
   const travelling = Boolean(travel);
+  const holdMs = reducedMotion ? 300 : ARRIVE_HOLD_MS;
   useEffect(() => {
     if (!travelling) return undefined;
-    const timeout = window.setTimeout(() => latest.current.finishTravel(), travelMs);
-    return () => window.clearTimeout(timeout);
-  }, [travelling, travelMs]);
+    const arrive = window.setTimeout(() => setArrived(true), travelMs);
+    const enter = window.setTimeout(() => latest.current.finishTravel(), travelMs + holdMs);
+    return () => {
+      window.clearTimeout(arrive);
+      window.clearTimeout(enter);
+    };
+  }, [travelling, travelMs, holdMs]);
 
   // "Travesura realizada": la tinta se borra y recién ahí se cierra.
   useEffect(() => {
@@ -188,7 +197,7 @@ export default function MaraudersMap({ places, collected, currentId, travel, pla
   });
 
   const status = travel
-    ? mapTexts.travelling(herePlace?.label ?? mapTexts.startLabel)
+    ? (arrived ? mapTexts.arrived : mapTexts.travelling)(herePlace?.label ?? mapTexts.startLabel)
     : herePlace
       ? mapTexts.here(herePlace.label)
       : mapTexts.start;
@@ -203,6 +212,7 @@ export default function MaraudersMap({ places, collected, currentId, travel, pla
         data-inked={inked}
         data-closing={closing}
         data-travel={Boolean(travel)}
+        data-arrived={arrived}
       >
         <header className="map-header">
           <p className="map-subtitle">{mapTexts.subtitle}</p>
@@ -358,7 +368,7 @@ export default function MaraudersMap({ places, collected, currentId, travel, pla
         <div className="map-actions">
           {travel ? (
             <button onClick={finishTravel} ref={actionRef}>
-              {mapTexts.skip}
+              {arrived ? mapTexts.enter(herePlace?.label ?? mapTexts.startLabel) : mapTexts.skip}
             </button>
           ) : (
             <button onClick={requestClose}>{mapTexts.close}</button>

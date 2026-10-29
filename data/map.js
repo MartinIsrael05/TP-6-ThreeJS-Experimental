@@ -15,6 +15,8 @@ export const mapTexts = {
   startLabel: "Lago Negro",
   locked: "Todavía en blanco",
   travelling: (label) => `Tus pasos van hacia ${label}`,
+  arrived: (label) => `Llegaste a ${label}`,
+  enter: (label) => `Entrar a ${label}`,
   here: (label) => `Estás en ${label}`,
   start: "Todavía estás en el bote",
 };

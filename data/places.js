@@ -22,6 +22,17 @@ export const prologue = {
   cta: "Abrir el diario",
   resume: (label) => `Seguir en ${label}`,
   note: "Mejor con auriculares y la luz baja.",
+  // Cartel de la transición al volver a la portada.
+  returnCard: { label: "Lago Negro", eyebrow: "De vuelta en el bote", color: "#4a6fa5" },
+};
+
+// Lugar al que se llegó por la URL antes de que el diario lo revelara.
+export const lockedPlace = {
+  eyebrow: "Página en blanco",
+  title: "Este lugar todavía no aparece en tu mapa.",
+  copy: (missing) => `El diario revela cada lugar cuando conseguís lo que esconde el anterior. Antes tenés que pasar por ${missing}.`,
+  back: (label) => `Ir a ${label}`,
+  map: "Abrir el mapa",
 };
 
 // Textos del panel de pársel en la Cámara. status va por estado del juego.
