@@ -22,11 +22,17 @@ rules_version = '2';
 // Un documento de la Fase 1 con el campo clues se puede leer, y la
 // primera escritura lo reemplaza por uno válido.
 //
-// Colección: users (sin cambios en la Fase 2)
+// Colección: users
 // Id del documento: uid de Firebase Authentication
 // Campos: userId, email, displayName, photoURL, isAnonymous,
 //   authProvider, createdAt, lastLoginAt. Contiene datos personales:
-//   solo lo lee su dueño.
+//   solo lo lee su dueño. El cliente escribe con setDoc y merge: true.
+//   - email: el del token de Auth, o null en las cuentas anónimas.
+//   - displayName (hasta 120) y photoURL (hasta 2048): string o null.
+//   - createdAt: solo al crear, con serverTimestamp(). Después no cambia.
+//   - lastLoginAt: serverTimestamp() en cada escritura.
+//   Los perfiles anteriores con otros campos se pueden seguir actualizando:
+//   en update solo se limita qué campos cambian.
 //
 // Las listas de ids están copiadas de data/houses.js, data/wands.js,
 // data/spells.js y data/places.js. Si cambian allá, cambian acá.
@@ -120,6 +126,35 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------
+    // Validador de users (perfil que se escribe en cada login)
+    // -------------------------------------------------------------
+
+    function userFields() {
+      return ['userId', 'email', 'displayName', 'photoURL', 'isAnonymous',
+              'authProvider', 'createdAt', 'lastLoginAt'];
+    }
+
+    // null o un string de hasta maxSize caracteres.
+    function isNullOrShortString(value, maxSize) {
+      return value == null || (value is string && value.size() <= maxSize);
+    }
+
+    // El email tiene que ser el de la cuenta (o null en las anónimas): no se
+    // puede escribir uno ajeno.
+    function isValidUser(userId) {
+      let data = request.resource.data;
+      return data.userId == request.auth.uid
+        && data.userId == userId
+        && data.email == request.auth.token.get('email', null)
+        && isNullOrShortString(data.displayName, 120)
+        && isNullOrShortString(data.photoURL, 2048)
+        && data.isAnonymous is bool
+        && data.authProvider is string
+        && data.authProvider in validProviders()
+        && data.lastLoginAt == request.time;
+    }
+
+    // -------------------------------------------------------------
     // Colecciones
     // -------------------------------------------------------------
 
@@ -129,12 +164,23 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if request.auth != null
-        && request.auth.uid == userId;
+      allow read: if isOwner(userId);
 
-      allow create, update: if request.auth != null
-        && request.auth.uid == userId
-        && request.resource.data.userId == request.auth.uid;
+      // Alta: solo los campos del perfil, con tipos y largos acotados.
+      allow create: if isOwner(userId)
+        && request.resource.data.keys().hasOnly(userFields())
+        && request.resource.data.keys().hasAll(userFields())
+        && isValidUser(userId)
+        && request.resource.data.createdAt == request.time;
+
+      // Cada login: se pueden tocar solo los campos que escribe la app.
+      // Se compara contra lo que cambia (y no contra todas las claves) para
+      // que los perfiles anteriores con otros campos sigan pudiendo entrar.
+      allow update: if isOwner(userId)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['userId', 'email', 'displayName', 'photoURL',
+                       'isAnonymous', 'authProvider', 'lastLoginAt'])
+        && isValidUser(userId);
     }
   }
 }
