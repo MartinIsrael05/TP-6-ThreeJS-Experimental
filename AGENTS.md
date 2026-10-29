@@ -17,7 +17,7 @@ Este archivo lo leen todos los agentes (Claude Code, Codex, Copilot, Cursor, ope
 TP6 de Programación Multimedial III (UMAI): experiencia web transmedia con Next.js, Three.js y Firebase ambientada en el mundo de Harry Potter. Trabajo en dupla. La consigna completa está en `README.md` (sección "Requisitos obligatorios"); revisala antes de proponer cambios grandes.
 
 - **Premisa (propuesta, a confirmar):** Recién llegado a Hogwarts, encontrás el diario de Tom Riddle y tenés que seguir sus páginas por el castillo para llegar a la Cámara de los Secretos antes de que vuelva a abrirse.
-- **Recorrido:** Prólogo (llegada con scroll + carta como login) → Gran Comedor (Sombrero seleccionador, se guarda la casa) → Ollivanders (varita y hechizos) → Escaleras giratorias (página 1) → Pasillo del 2º piso (página 2, Lumos) → Campo de Quidditch (página 3, atrapar la snitch) → Cámara de los Secretos (cierre según la casa).
+- **Recorrido:** Prólogo (llegada con scroll + carta como login) → Gran Comedor (Sombrero seleccionador, se guarda la casa) → Ollivanders (varita y hechizos) → Escaleras giratorias (página 1) → Pasillo del 2º piso (página 2, Lumos) → Campo de Quidditch (página 3, atrapar la snitch) → Sala de trofeos (capa de invisibilidad, pasar sin que Filch te vea) → Cámara de los Secretos (cierre según la casa). El Mapa del Merodeador muestra el recorrido y dónde estás, y hace de transición entre lugares.
 - **Coleccionables:** páginas del diario. **Decisión persistida:** casa y varita.
 - Detalle completo en [docs/propuesta.md](docs/propuesta.md). Forma de trabajo con IA en [docs/plan-ia.md](docs/plan-ia.md).
 
@@ -55,7 +55,7 @@ hooks/useSorting.js, useWandShop.js   estado del Sombrero y de Ollivanders
 lib/three/                liberar recursos, PBR, postprocesado, chispas, puntero, cielo nocturno
 lib/audio/                audio sintetizado (ambientes, efectos) y detector de siseo del micrófono
 lib/gestures/             reconocedor de trazos de hechizos ($1) y detector de sacudidas
-lib/hands/                seguimiento de la mano con MediaPipe y puntero virtual
+lib/hands/                seguimiento de la mano con MediaPipe, puntero virtual y detector de la capa (dos manos)
 lib/firebase.js           inicialización de Firebase
 firestore.rules           reglas de acceso por usuario
 public/                   modelos (.glb y el de la mano en models/), texturas (textures/<lugar>/)
