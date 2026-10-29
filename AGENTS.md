@@ -45,6 +45,7 @@ Sin `.env.local` el sitio funciona en modo LOCAL con localStorage.
 app/                      rutas (App Router), layout con metadata y fuentes, estilos globales
   page.js                 portada: el prólogo
   castillo/[lugar]/       ruta dinámica de cada lugar (generateStaticParams, metadata, notFound)
+  diario/[pagina]/        páginas del diario para releer (se leen si ya las conseguiste)
   loading.js, error.js, not-found.js   estados de carga, error y 404
 components/               Experience (estado narrativo), ThreeArtifact (elige la escena), paneles flotantes (*Hud), AuthPanel
   scenes/                 una escena 3D por lugar (Artifact es la genérica); piezas en scenes/<lugar>/
@@ -56,6 +57,7 @@ lib/three/                liberar recursos, PBR, postprocesado, chispas, puntero
 lib/audio/                audio sintetizado (ambientes, efectos) y detector de siseo del micrófono
 lib/gestures/             reconocedor de trazos de hechizos ($1) y detector de sacudidas
 lib/hands/                seguimiento de la mano con MediaPipe, puntero virtual y detector de la capa (dos manos)
+lib/transition.js         velo de tinta entre lugares (lo dibuja PlaceVeil, que está en el layout)
 lib/firebase.js           inicialización de Firebase
 firestore.rules           reglas de acceso por usuario
 public/                   modelos (.glb y el de la mano en models/), texturas (textures/<lugar>/)

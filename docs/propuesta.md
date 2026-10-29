@@ -38,6 +38,8 @@ Resumen del documento "Hogwarts: propuesta, ideas y plan de trabajo" (14/10/2026
 
 **Mapa del Merodeador (hecho):** pergamino con el castillo en tinta, el recorrido que el diario ya reveló, tus huellas y tu nombre donde estás, y Filch, Señora Norris, Peeves y Riddle moviéndose. Se abre desde la barra (o con la tecla M) después del juramento, y al pasar al siguiente lugar o al entrar desde el prólogo las huellas caminan hasta el destino. Textos y coordenadas en `data/map.js`.
 
+**Diario (hecho):** `/diario/[pagina]` muestra las tres páginas arrancadas; la tinta aparece si ya conseguiste la página y si no te dice dónde buscarla. Textos en `data/diary.js`. El diagrama de rutas está en [navegacion.md](navegacion.md).
+
 Ideas sumadas: Mapa del Merodeador como navegación ("Juro solemnemente..." / "Travesura realizada"), el diario como segunda ruta dinámica (`/diario/[pagina]`), relojes de arena de puntos como progreso, persistencia dentro del mundo (Lechuza enviada / Pergamino local / Sin lechuzas), login como carta de Hogwarts, shader o partículas de hechizos como recurso propio.
 
 ## Look 3D
