@@ -150,7 +150,7 @@ button { color: inherit; font: inherit; }
 
 /* Mano: botón en la barra, vista chica de la cámara (espejada) y un cursor
    de luz que se achica al pellizcar. */
-.hand-toggle {
+.hand-toggle, .map-toggle {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -162,7 +162,7 @@ button { color: inherit; font: inherit; }
   letter-spacing: 0.06em;
   cursor: pointer;
 }
-.hand-toggle:hover, .hand-toggle[aria-pressed="true"] { color: var(--dorado-claro); }
+.hand-toggle:hover, .hand-toggle[aria-pressed="true"], .map-toggle:hover { color: var(--dorado-claro); }
 .hand-toggle:disabled { cursor: progress; opacity: 0.7; }
 .hand-icon { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -613,6 +613,202 @@ button { color: inherit; font: inherit; }
 .parsel-meter i { display: block; width: 100%; height: 100%; background: var(--luz-suave); transform: scaleX(var(--nivel)); transform-origin: left; transition: transform 0.06s linear; }
 
 /* Alternativa accesible: plegada para no tentar, a un toque de distancia. */
+/* Capa de invisibilidad: panel arriba al centro, como el del pársel. La
+   escena marca data-cloak y data-caught en su contenedor; encima se dibuja el
+   velo de la capa (la sala se ve a través de la tela) o el destello de la
+   linterna cuando te ven. */
+.castle:has(.cloak-hud) .narrative { display: none; }
+.cloak-hud { top: 136px; left: 50%; width: min(32rem, calc(100vw - 32px)); padding: 16px 24px 18px; border-top: 2px solid var(--luz-suave); text-align: center; transform: translateX(-50%); }
+.cloak-hud[data-mode="turning"], .cloak-hud[data-mode="caught"] { border-top-color: var(--vino-claro); }
+.cloak-status { margin: 0 0 12px; font-size: 1.02rem; }
+.cloak-hud[data-mode="turning"] .cloak-status { color: var(--vino-claro); animation: parsel-now 0.6s ease-in-out infinite; }
+.cloak-track { height: 6px; margin: 0 0 12px; border: 1px solid var(--linea); border-radius: 999px; overflow: hidden; }
+.cloak-track i { display: block; height: 100%; background: var(--luz-suave); transform: scaleX(var(--avance, 0)); transform-origin: left; transition: transform 0.2s linear; }
+.cloak-state { margin: 0 0 12px; color: var(--ceniza); font-style: italic; }
+.cloak-state.is-covered { color: var(--luz-suave); }
+.cloak-start {
+  margin: 0 0 12px;
+  border: 1px solid var(--luz-suave);
+  padding: 10px 20px;
+  background: transparent;
+  color: var(--luz-suave);
+  font-family: var(--titulo);
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.cloak-start:hover { background: var(--luz-suave); color: var(--tinta); }
+.cloak-preview { position: relative; width: 132px; border: 1px solid var(--linea); overflow: hidden; }
+.cloak-preview video { display: block; width: 100%; height: auto; transform: scaleX(-1); opacity: 0.85; transition: opacity 0.3s, filter 0.3s; }
+.cloak-preview[data-covered="true"] video { opacity: 0.25; filter: blur(3px) saturate(0.3); }
+.cloak-preview span { position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 6px; background: color-mix(in srgb, var(--tinta) 70%, transparent); font-size: 0.74rem; font-style: italic; }
+.cloak-hud .sorting-help { margin-top: 8px; }
+
+.trophies-stage { position: relative; }
+.trophies-stage::after,
+.trophies-stage::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.35s ease-out; }
+.trophies-stage::after {
+  background:
+    radial-gradient(ellipse at 50% 46%, transparent 38%, rgba(196, 210, 232, 0.16) 72%, rgba(222, 230, 244, 0.34) 100%),
+    repeating-linear-gradient(112deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 11px);
+  background-size: 100% 100%, 240% 240%;
+  animation: cloak-shimmer 7s linear infinite;
+}
+.trophies-stage[data-cloak="on"]::after { opacity: 1; backdrop-filter: saturate(0.35) brightness(0.92) blur(0.6px); }
+.trophies-stage::before { z-index: 1; background: radial-gradient(circle at 50% 40%, rgba(255, 214, 140, 0.55), rgba(140, 30, 20, 0.35) 70%); transition-duration: 0.12s; }
+.trophies-stage[data-caught="true"]::before { opacity: 1; }
+@keyframes cloak-shimmer { to { background-position: 0 0, 240% 0; } }
+
+/* Mapa del Merodeador: un pergamino encima de todo. La tinta aparece desde
+   el centro al jurar y se borra al decir "Travesura realizada". */
+.map-overlay {
+  position: fixed;
+  z-index: 60;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(8, 5, 3, 0.72);
+  backdrop-filter: blur(3px);
+  animation: ink-in 0.4s ease-out both;
+}
+.marauders {
+  --tinta-mapa: var(--tinta-papel);
+  position: relative;
+  width: min(1080px, 100%);
+  max-height: calc(100svh - 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px 22px 16px;
+  overflow-y: auto;
+  background:
+    radial-gradient(ellipse at 18% 22%, rgba(140, 100, 50, 0.16), transparent 40%),
+    radial-gradient(ellipse at 82% 78%, rgba(120, 80, 40, 0.2), transparent 45%),
+    radial-gradient(ellipse at 50% 50%, var(--papel) 55%, var(--papel-sombra) 100%);
+  color: var(--tinta-mapa);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6), inset 0 0 60px rgba(90, 60, 30, 0.35);
+}
+.marauders :focus-visible { outline-color: var(--vino); }
+.map-header { text-align: center; }
+.map-subtitle { margin: 0; color: #6f5b45; font-size: 0.86rem; font-style: italic; }
+.marauders h2 { margin: 2px 0 0; font-family: var(--titulo); font-size: clamp(1.3rem, 3vw, 2rem); font-weight: 500; letter-spacing: 0.06em; }
+.map-status { min-height: 1.5em; margin: 2px 0 0; color: var(--vino); font-style: italic; }
+
+/* El dibujo entra entero en la pantalla: el ancho se limita también por el
+   alto disponible (lo que dejan el encabezado y el botón). */
+.map-sheet { position: relative; width: min(100%, calc((100svh - 250px) * 1.5625)); margin-inline: auto; aspect-ratio: 1000 / 640; }
+.map-layer { position: absolute; inset: 0; }
+.marauders[data-inked="false"] .map-layer { opacity: 0; pointer-events: none; }
+.marauders[data-inked="true"] .map-layer { animation: ink-spread 1.6s ease-out both; }
+.marauders[data-closing="true"] .map-layer { animation: ink-fade 0.65s ease-in both; }
+@keyframes ink-spread {
+  from { opacity: 0.1; clip-path: circle(0% at 50% 50%); filter: blur(2px); }
+  to { opacity: 1; clip-path: circle(80% at 50% 50%); filter: none; }
+}
+@keyframes ink-fade { to { opacity: 0; filter: blur(3px); } }
+
+.map-oath {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  z-index: 1;
+  width: min(30rem, 86%);
+  border: 1px solid rgba(46, 28, 18, 0.45);
+  padding: 16px 22px;
+  background: transparent;
+  color: var(--tinta-mapa);
+  font-family: var(--titulo);
+  font-size: clamp(0.95rem, 2.2vw, 1.2rem);
+  letter-spacing: 0.04em;
+  line-height: 1.4;
+  cursor: pointer;
+  transform: translate(-50%, -50%);
+  animation: oath-breathe 1.6s ease-in-out infinite alternate;
+}
+@keyframes oath-breathe { from { opacity: 0.55; } }
+.map-oath:hover { border-color: var(--vino); color: var(--vino); }
+
+.map-drawing { display: block; width: 100%; height: 100%; overflow: visible; }
+.map-castle { fill: none; stroke: var(--tinta-mapa); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; opacity: 0.85; }
+.map-castle .map-thin { stroke-width: 1.2; opacity: 0.7; }
+.map-castle .map-dashed { stroke-width: 1.4; stroke-dasharray: 6 6; }
+.map-castle .map-water { fill: rgba(60, 70, 80, 0.08); stroke-width: 1.4; }
+.map-castle .map-hatch { stroke-width: 1; opacity: 0.45; }
+.map-compass path:first-of-type { fill: var(--tinta-mapa); }
+.map-note { fill: #6f5b45; font-family: var(--texto); font-size: 17px; font-style: italic; }
+.map-route { fill: none; stroke: var(--tinta-mapa); stroke-width: 1.6; stroke-dasharray: 2 9; stroke-linecap: round; opacity: 0.55; }
+.map-route.is-walked { stroke: var(--vino); opacity: 0.8; }
+.map-step { fill: var(--tinta-mapa); animation: step-in 0.35s ease-out both; }
+@keyframes step-in { from { opacity: 0; } }
+.map-wanderer circle { fill: var(--vino); }
+.map-wanderer text { fill: var(--tinta-mapa); font-family: var(--titulo); font-size: 15px; letter-spacing: 0.04em; }
+.map-wanderer.is-ghost { animation: ghost 3.2s ease-in-out infinite; }
+.map-wanderer.is-ghost circle { fill: #1f6b4f; }
+@keyframes ghost { 50% { opacity: 0.25; } }
+
+.map-place {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 3px 8px 3px 3px;
+  background: none;
+  color: var(--tinta-mapa);
+  font-size: clamp(0.62rem, 1.4vw, 0.92rem);
+  line-height: 1.1;
+  white-space: nowrap;
+  cursor: pointer;
+  transform: translate(-14px, -50%);
+}
+.map-place b {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+  background: var(--papel);
+  font-family: var(--titulo);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+.map-place span { padding: 1px 4px; background: color-mix(in srgb, var(--papel) 75%, transparent); }
+.map-place:hover:not(:disabled) span { text-decoration: underline; text-underline-offset: 3px; }
+.map-place:disabled { cursor: default; }
+.map-place[data-state="done"] b { background: var(--tinta-mapa); color: var(--papel); }
+.map-place[data-state="here"] b { border-color: var(--vino); background: var(--vino); color: var(--papel); box-shadow: 0 0 0 4px rgba(109, 26, 40, 0.2); }
+.map-place[data-state="open"] b { animation: parsel-now 1.4s ease-in-out infinite; }
+.map-place[data-state="locked"] { opacity: 0.4; font-style: italic; }
+.map-place[data-state="locked"] b { border-style: dashed; }
+.map-you {
+  position: absolute;
+  padding: 1px 8px;
+  border: 1px solid var(--tinta-mapa);
+  background: var(--papel);
+  color: var(--tinta-mapa);
+  font-family: var(--titulo);
+  font-size: clamp(0.62rem, 1.3vw, 0.86rem);
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--dorado) 70%, transparent);
+  transform: translate(-50%, calc(-100% - 22px));
+  animation: ink-in 0.6s ease-out both;
+  pointer-events: none;
+}
+.map-actions { display: flex; justify-content: center; }
+.map-actions button {
+  border: 1px solid var(--vino);
+  padding: 9px 20px;
+  background: transparent;
+  color: var(--vino);
+  font-family: var(--titulo);
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+.map-actions button:hover { background: var(--vino); color: var(--papel); }
+
 .hud-alt { margin-top: 4px; }
 .hud-alt summary { width: fit-content; color: var(--ceniza); font-size: 0.86rem; font-style: italic; cursor: pointer; }
 .hud-alt summary:hover { color: var(--luz-suave); }
@@ -871,7 +1067,15 @@ button { color: inherit; font: inherit; }
   .narrative { top: 110px; left: 8px; width: calc(100vw - 16px); max-height: 40svh; padding: 14px 16px 10px; }
   .place-copy { font-size: 0.98rem; }
 
-  .sorting-hud, .wand-hud, .parsel-hud { top: 108px; padding: 12px 16px; }
+  .sorting-hud, .wand-hud, .parsel-hud, .cloak-hud { top: 108px; padding: 12px 16px; }
+  .cloak-preview { width: 104px; }
+  .map-overlay { padding: 8px; }
+  .marauders { max-height: calc(100svh - 16px); padding: 12px 10px; }
+  .map-subtitle { display: none; }
+  .map-place { gap: 3px; padding-right: 2px; }
+  .map-place b { width: 20px; height: 20px; font-size: 0.6rem; }
+  .map-place:not([data-state="here"]) span { display: none; }
+  .map-note, .map-wanderer text { font-size: 22px; }
   .hud-bottom { left: 8px; right: 8px; bottom: 8px; flex-direction: column; align-items: stretch; gap: 8px; }
   .diary-page { width: auto; padding: 14px 16px 10px; transform: none; }
   .diary-page:not(.found) { display: none; }

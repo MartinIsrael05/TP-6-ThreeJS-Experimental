@@ -17,8 +17,11 @@ import { useWandShop } from "@/hooks/useWandShop";
 import { createShakeDetector } from "@/lib/gestures/shake";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
+import { mapTexts } from "@/data/map";
 import AuthPanel from "@/components/AuthPanel";
+import CloakHud from "@/components/CloakHud";
 import HandControl from "@/components/HandControl";
+import MaraudersMap from "@/components/MaraudersMap";
 import ParselHud from "@/components/ParselHud";
 import Prologue from "@/components/Prologue";
 import SortingHud from "@/components/SortingHud";
@@ -39,6 +42,18 @@ const STARTS_WITH_ACTION = new Set(["sombrero", "varita"]);
 const SPELL_BY_PLACE = Object.fromEntries(spells.map((spell) => [spell.placeId, spell]));
 const CAST_MS = 1800;
 const HINT_MS = 3200;
+// Sonido del botón alternativo en los lugares que no tienen hechizo.
+const CAST_SOUND = { camara: "hiss", trofeos: "cloak" };
+// El juramento del mapa se hace una vez por sesión.
+const SWORN_KEY = "hogwarts-mapa-jurado";
+
+function readSworn() {
+  try {
+    return typeof window !== "undefined" && window.sessionStorage.getItem(SWORN_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
 
 export default function Experience({ initialPlaceId }) {
   const router = useRouter();
@@ -63,6 +78,14 @@ export default function Experience({ initialPlaceId }) {
   const hissRef = useRef({ active: false });
   const [parselState, setParselState] = useState(null);
   const [replayAt, setReplayAt] = useState(0);
+  // Capa: si estás cubierto y si ya empezaste a cruzar (lo escribe el panel,
+  // lo lee la escena) y en qué va la ronda de Filch (lo cuenta la escena).
+  const cloakRef = useRef({ covered: false, started: false });
+  const [cloakState, setCloakState] = useState(null);
+  // Mapa: null cerrado, { travel: null } para mirarlo y { travel: { from, to } }
+  // mientras las huellas caminan hacia otro lugar.
+  const [mapState, setMapState] = useState(null);
+  const [sworn, setSworn] = useState(readSworn);
   const castTimer = useRef(0);
   const finaleTimer = useRef(0);
   const {
@@ -74,6 +97,7 @@ export default function Experience({ initialPlaceId }) {
     continueAsGuest,
     collected,
     collect,
+    currentPlace: savedPlaceId,
     ending: endingHouseId,
     firebaseConfigured,
     house: houseId,
@@ -118,6 +142,10 @@ export default function Experience({ initialPlaceId }) {
       : place.item.id === "varita" && wand
         ? wandName(wand)
         : null;
+  // Dónde retomar al entrar desde la portada: el último lugar, si sigue abierto.
+  const savedIndex = places.findIndex((entry) => entry.id === savedPlaceId);
+  const resumePlace = savedIndex > 0 && canOpen(savedIndex) ? places[savedIndex] : null;
+  const playerName = authUser && !authUser.isAnonymous && authUser.displayName ? authUser.displayName.split(" ")[0] : null;
 
   useEffect(() => {
     if (!flash) return;
@@ -125,9 +153,23 @@ export default function Experience({ initialPlaceId }) {
     return () => window.clearTimeout(timeout);
   }, [flash]);
 
+  // authUser también es dependencia: al terminar de sincronizar con Firebase
+  // el progreso remoto pisa currentPlace, y hay que volver a marcar el lugar
+  // en el que estás.
   useEffect(() => {
     if (ready && initialPlaceId) setCurrentPlace(initialPlaceId);
-  }, [ready, initialPlaceId, setCurrentPlace]);
+  }, [ready, initialPlaceId, setCurrentPlace, authUser]);
+
+  // La tecla M abre y cierra el mapa (salvo mientras escribís).
+  useEffect(() => {
+    function onKeyDown(event) {
+      if (event.key.toLowerCase() !== "m" || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.target.closest?.("input, textarea, select, [contenteditable]")) return;
+      setMapState((current) => (current ? (current.travel ? current : null) : { travel: null }));
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   // Si se cambia de lugar con un hechizo en el aire, el hechizo se pierde.
   useEffect(() => () => window.clearTimeout(castTimer.current), [place.id]);
@@ -222,7 +264,7 @@ export default function Experience({ initialPlaceId }) {
   function castSpell() {
     const itemId = place.item.id;
     setCastingPlaceId(place.id);
-    playSfx(spell?.id === "lumos" ? "lumos" : spell ? "spell" : "hiss");
+    playSfx(spell?.id === "lumos" ? "lumos" : spell ? "spell" : CAST_SOUND[place.id] ?? "spell");
     castTimer.current = window.setTimeout(() => {
       setCastingPlaceId(null);
       completeItem(itemId);
@@ -263,14 +305,42 @@ export default function Experience({ initialPlaceId }) {
     return index === 0 || collected.has(places[index - 1].item.id);
   }
 
+  // Al entrar desde la portada, las huellas salen del bote y llegan al lugar
+  // donde quedaste (o al primero).
   function enterExperience() {
     playSfx("spell");
-    router.push(`/castillo/${places[0].id}`);
+    travelTo((resumePlace ?? places[0]).id, null);
   }
 
   function openPlace(placeId) {
     playSfx("whoosh");
     router.push(`/castillo/${placeId}`);
+  }
+
+  // Viaje con el mapa: se abre entintado, las huellas caminan y al llegar se
+  // cambia de ruta.
+  function travelTo(placeId, fromId = entered ? place.id : null) {
+    setMapState({ travel: { from: fromId, to: placeId } });
+  }
+
+  function arrive() {
+    const to = mapState?.travel?.to;
+    setMapState(null);
+    if (to) openPlace(to);
+  }
+
+  function swear() {
+    playSfx("spell", { pitch: -5 });
+    setSworn(true);
+    try {
+      window.sessionStorage.setItem(SWORN_KEY, "1");
+    } catch {
+      // Sin sessionStorage el juramento se pide de nuevo; no pasa nada.
+    }
+  }
+
+  function closeMap() {
+    setMapState(null);
   }
 
   function returnToStart() {
@@ -303,13 +373,26 @@ export default function Experience({ initialPlaceId }) {
       <div className="candlelight" aria-hidden="true" />
       <WandCursor />
 
-      {!entered && <Prologue onEnter={enterExperience} />}
+      {!entered && <Prologue onEnter={enterExperience} resumeLabel={resumePlace?.label} />}
 
       <header className="topbar">
         <button className="brand" onClick={returnToStart}>
           Hogwarts
         </button>
         <div className="status">
+          <button
+            type="button"
+            className="map-toggle"
+            onClick={() => setMapState({ travel: null })}
+            aria-haspopup="dialog"
+            aria-keyshortcuts="M"
+            title={`${mapTexts.title} (M)`}
+          >
+            <svg className="hand-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M3 6.5 9 4l6 2.5L21 4v13.5L15 20l-6-2.5L3 20Z M9 4v13.5 M15 6.5V20" />
+            </svg>
+            <span className="hand-label">{mapTexts.open}</span>
+          </button>
           <HandControl />
           <SoundToggle />
           <span
@@ -358,6 +441,8 @@ export default function Experience({ initialPlaceId }) {
               hissRef={hissRef}
               replayAt={replayAt}
               onParselState={setParselState}
+              cloakRef={cloakRef}
+              onCloakState={setCloakState}
             />
             <SpellCanvas
               spell={awaitingSpell ? spell : null}
@@ -424,6 +509,9 @@ export default function Experience({ initialPlaceId }) {
           {place.id === "camara" && !isCollected && !casting && (
             <ParselHud hissRef={hissRef} state={parselState} onReplay={() => setReplayAt(Date.now())} />
           )}
+          {place.id === "trofeos" && !isCollected && !casting && (
+            <CloakHud cloakRef={cloakRef} state={cloakState} />
+          )}
 
           {/* Abajo: la página del diario a la izquierda y la instrucción a la
               derecha (en el celular, una arriba de la otra). */}
@@ -478,7 +566,7 @@ export default function Experience({ initialPlaceId }) {
               </details>
             )}
             {isCollected && nextPlace && (
-              <button onClick={() => openPlace(nextPlace.id)}>
+              <button onClick={() => travelTo(nextPlace.id)}>
                 Ir a {nextPlace.label}
               </button>
             )}
@@ -521,6 +609,21 @@ export default function Experience({ initialPlaceId }) {
             <button onClick={handleReset}>Empezar de nuevo</button>
           </div>
         </section>
+      )}
+
+      {mapState && (
+        <MaraudersMap
+          places={places}
+          collected={collected}
+          currentId={entered ? place.id : savedPlaceId}
+          travel={mapState.travel}
+          playerName={playerName}
+          sworn={sworn}
+          onSwear={swear}
+          onGo={(placeId) => travelTo(placeId)}
+          onArrive={arrive}
+          onClose={closeMap}
+        />
       )}
 
       {authOpen && (
