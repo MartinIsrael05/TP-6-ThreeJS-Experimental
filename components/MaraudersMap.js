@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { MAP_SIZE, mapPlaces, mapStart, mapTexts, mapWanderers } from "@/data/map";
+import { pauseScenes } from "@/lib/three/renderPause";
 
 const START = "start";
 // Un paso cada tantas unidades del dibujo, y cuánto tarda en aparecer cada uno.
@@ -169,6 +170,9 @@ export default function MaraudersMap({ places, collected, currentId, travel, pla
     const timeout = window.setTimeout(() => latest.current.onClose(), CLOSE_MS);
     return () => window.clearTimeout(timeout);
   }, [closing]);
+
+  // El pergamino tapa casi toda la escena: mientras está abierto, no se dibuja.
+  useEffect(() => pauseScenes(), []);
 
   // Escape cierra; al cerrar, el foco vuelve a donde estaba.
   useEffect(() => {

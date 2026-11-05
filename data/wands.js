@@ -15,7 +15,16 @@ export const wandShop = {
     chispas: "Una lluvia de chispas tibias te subió por el brazo.",
   },
   confirm: "Quedarme con esta varita",
-  learned: "Con la varita llegan tus primeros hechizos. El diario te va a pedir cada uno en su lugar.",
+  learned: "Ya practicaste tus primeros hechizos. El diario te va a pedir cada uno en su lugar.",
+  practice: {
+    title: "Práctica de hechizos",
+    intro: "Antes de irte, el señor Ollivander quiere ver cómo la movés. Dibujá cada forma sobre la escena, de un solo trazo.",
+    step: (current, total) => `Hechizo ${current} de ${total}`,
+    draw: (incantation, shape) => `Dibujá ${incantation}: ${shape}.`,
+    done: (incantation) => `¡${incantation} te salió perfecto!`,
+    wrong: (incantation) => `Ese trazo no es ${incantation}. Mirá la forma y probá de nuevo.`,
+    skip: "Saltar la práctica",
+  },
   close: "Guardar la varita",
 };
 

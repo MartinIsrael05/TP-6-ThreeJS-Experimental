@@ -1,6 +1,8 @@
 "use client"; // Hook con estado: qué varita tenés en la mano en Ollivanders y cómo reaccionó.
 
 import { useState } from "react";
+import { places } from "@/data/places";
+import { spells } from "@/data/spells";
 import { getWand, wands } from "@/data/wands";
 import { playSfx } from "@/lib/audio/sfx";
 
@@ -8,13 +10,21 @@ import { playSfx } from "@/lib/audio/sfx";
 const TRIAL_SFX = { vela: "puff", frasco: "glass", estante: "rattle", chispas: "spell" };
 const SHAKE_COOLDOWN_MS = 1200;
 
+// Orden de práctica: el mismo en que se usan los hechizos en el recorrido.
+const PRACTICE = [...spells].sort((a, b) => places.findIndex((place) => place.id === a.placeId) - places.findIndex((place) => place.id === b.placeId));
+const EMPTY = { heldId: null, shaken: false, tried: [], chosenId: null, trial: null, practiced: [] };
+
 // Fases: "browsing" (ninguna varita en la mano), "holding" (una en la mano,
-// agitada o no) y "chosen" (te quedaste con una). trial ({ wandId, at })
-// avisa a la escena cada vez que una varita reacciona.
-export function useWandShop({ onChoose }) {
-  const [state, setState] = useState({ heldId: null, shaken: false, tried: [], chosenId: null, trial: null });
+// agitada o no), "practice" (te quedaste con una y practicás cada trazo) y
+// "chosen" (ya practicaste). trial ({ wandId, at }) avisa a la escena cada
+// vez que una varita reacciona. onPracticed se llama al terminar la práctica
+// (o al saltearla): ahí el lugar queda resuelto.
+export function useWandShop({ onChoose, onPracticed }) {
+  const [state, setState] = useState(EMPTY);
   const held = state.heldId ? getWand(state.heldId) : null;
-  const phase = state.chosenId ? "chosen" : held ? "holding" : "browsing";
+  const practiceDone = state.practiced.length >= PRACTICE.length;
+  const phase = state.chosenId ? (practiceDone ? "chosen" : "practice") : held ? "holding" : "browsing";
+  const practiceSpell = phase === "practice" ? PRACTICE[state.practiced.length] : null;
 
   // Abrir una caja: primero las que todavía no probaste, en orden.
   function pickBox() {
@@ -48,14 +58,35 @@ export function useWandShop({ onChoose }) {
     setState({ ...state, chosenId: held.id });
   }
 
+  // Un trazo reconocido durante la práctica. Devuelve si era el que tocaba.
+  function practice(spellId) {
+    if (!practiceSpell || spellId !== practiceSpell.id) return false;
+    const practiced = [...state.practiced, spellId];
+    setState({ ...state, practiced });
+    if (practiced.length >= PRACTICE.length) onPracticed();
+    return true;
+  }
+
+  // Alternativa accesible: dar la práctica por hecha.
+  function skipPractice() {
+    if (phase !== "practice") return;
+    setState({ ...state, practiced: PRACTICE.map((spell) => spell.id) });
+    onPracticed();
+  }
+
   return {
     phase,
     held,
     shaken: state.shaken,
     trial: state.trial,
+    practiceSpell,
+    practiced: state.practiced,
+    practiceOrder: PRACTICE,
     pickBox,
     shake,
     choose,
-    close: () => setState({ heldId: null, shaken: false, tried: [], chosenId: null, trial: null }),
+    practice,
+    skipPractice,
+    close: () => setState(EMPTY),
   };
 }

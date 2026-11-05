@@ -44,6 +44,34 @@ export default function WandHud({ shop }) {
         </>
       )}
 
+      {/* Práctica: cada hechizo se dibuja sobre la escena antes de seguir. */}
+      {phase === "practice" && (
+        <>
+          <p className="sorting-step">
+            {wandShop.practice.title} · {wandShop.practice.step(shop.practiced.length + 1, shop.practiceOrder.length)}
+          </p>
+          <h3>{shop.practiceSpell.incantation}</h3>
+          <p className="wand-description">{wandShop.practice.intro}</p>
+          <div className="practice-glyph">
+            <SpellGlyph key={shop.practiceSpell.id} points={shop.practiceSpell.gesture.points} label={`Forma de ${shop.practiceSpell.incantation}: ${shop.practiceSpell.gesture.shape}`} />
+          </div>
+          <p className="wand-reaction">{wandShop.practice.draw(shop.practiceSpell.incantation, shop.practiceSpell.gesture.shape)}</p>
+          <ol className="practice-steps" aria-label={wandShop.practice.title}>
+            {shop.practiceOrder.map((spell) => (
+              <li key={spell.id} data-done={shop.practiced.includes(spell.id)} data-now={spell.id === shop.practiceSpell.id}>
+                {spell.incantation}
+              </li>
+            ))}
+          </ol>
+          <details className="hud-alt">
+            <summary>Practicar sin dibujar</summary>
+            <button className="sorting-confirm" onClick={shop.skipPractice}>
+              {wandShop.practice.skip}
+            </button>
+          </details>
+        </>
+      )}
+
       {phase === "chosen" && (
         <>
           <p className="sorting-step">{wandShop.title}</p>
