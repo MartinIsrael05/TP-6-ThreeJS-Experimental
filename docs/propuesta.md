@@ -42,6 +42,19 @@ Resumen del documento "Hogwarts: propuesta, ideas y plan de trabajo" (14/10/2026
 
 Ideas sumadas: Mapa del Merodeador como navegación ("Juro solemnemente..." / "Travesura realizada"), el diario como segunda ruta dinámica (`/diario/[pagina]`), relojes de arena de puntos como progreso, persistencia dentro del mundo (Lechuza enviada / Pergamino local / Sin lechuzas), login como carta de Hogwarts, shader o partículas de hechizos como recurso propio.
 
+## Mejoras de la segunda versión
+
+| Mejora | Cómo funciona |
+| --- | --- |
+| Más duración | Cada nivel tiene una segunda fase: las escaleras se desordenan otra vez y un tramo se mueve solo si dudás, hay un segundo mensaje en la pared, la snitch se suelta y vuelve más rápida, la Sala de trofeos es más larga y Filch amaga, y el pársel tiene tres rondas |
+| Historia | Al llegar a cada lugar se abre una nota del diario (capítulo, punto de la historia y qué hacer); la escena arranca al cerrarla |
+| Tutorial de la varita | Después de elegir la varita se practica cada hechizo dibujándolo en Ollivanders |
+| Pistas | Si tardás 45, 90 o 140 segundos, el diario escribe una pista (`hints` de cada lugar) |
+| Resumen | "Lo que pasó hasta ahora" la primera vez que volvés otro día (o con `?resumen` en la URL) |
+| Cuarta página | Escondida detrás del escudo de Riddle en la Sala de trofeos (la tercera página da la pista). Cambia el final por el "Final verdadero" y se lee en `/diario/4` |
+| Contador | Tiempo en el castillo, hechizos lanzados y páginas, en el final. Se guarda solo en el navegador (`lib/stats.js`) |
+| Rendimiento | Calidad en tres escalones, escenas en pausa bajo el mapa y el resumen, menos luces y paneles sin desenfoque en el celular. Medidor con `?fps`; guía en [pruebas-celular.md](pruebas-celular.md) |
+
 ## Look 3D
 
 La sensación de película sale más de la atmósfera que del detalle de los modelos: texturas PBR reales (Poly Haven, ambientCG), luz cálida de velas, HDRI, niebla, polvo en el aire, postprocesado (bloom, viñeta, grano, corrección de color) y cámara sobre rieles que solo muestra lo que está construido, como un set de filmación. Las piezas protagonistas se modelan en Maya o Blender.
@@ -80,7 +93,7 @@ Implementado en la Fase 2 (`hooks/useProgress.js`) y validado en `firestore.rule
 | `house` | string o null | `gryffindor`, `hufflepuff`, `ravenclaw`, `slytherin` (`data/houses.js`) |
 | `wand` | string o null | `sauce-unicornio`, `cerezo-dragon`, `nogal-fenix`, `abedul-unicornio` (`data/wands.js`) |
 | `spells` | lista | Hasta 3, sin repetir: `lumos`, `alohomora`, `accio` (`data/spells.js`) |
-| `items` | lista | Hasta 7, sin repetir: `sombrero`, `varita`, `pagina-1`, `pagina-2`, `pagina-3`, `capa`, `camara-abierta` (`data/places.js`) |
+| `items` | lista | Hasta 8, sin repetir: `sombrero`, `varita`, `pagina-1`, `pagina-2`, `pagina-3`, `pagina-4` (escondida), `capa`, `camara-abierta` (`data/places.js`) |
 | `currentPlace` | string o null | Uno de los 7 lugares de `data/places.js` |
 | `ending` | string o null | Igual a `house`, y solo cuando `items` incluye `camara-abierta` |
 | `updatedAt` | timestamp | Lo pone el servidor con `serverTimestamp()` |
