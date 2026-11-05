@@ -14,8 +14,8 @@ const CAMERA_POSITION = new THREE.Vector3(0, 2.4, 8.2);
 const DOOR_CENTER = new THREE.Vector3(0, 2.7, 0);
 const CAMERA_TARGET = new THREE.Vector3(0, 2.4, 0);
 // Pársel: la puerta sisea un patrón de siseos cortos ("c") y largos ("l")
-// y hay que repetirlo siseando. Primero tres siseos, después cuatro.
-const ROUND_LENGTHS = [3, 4];
+// y hay que repetirlo siseando: tres rondas, de tres, cuatro y cinco siseos.
+const ROUND_LENGTHS = [3, 4, 5];
 const SHORT_SECONDS = 0.35;
 const LONG_SECONDS = 1.05;
 const GAP_SECONDS = 0.45;

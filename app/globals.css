@@ -773,6 +773,83 @@ button { color: inherit; font: inherit; }
 }
 .diary-nav button:hover { background: var(--dorado-claro); color: var(--tinta); }
 
+/* Nota del diario al llegar a un lugar (y el resumen al volver otro día):
+   una hoja del diario sobre la oscuridad, con la tinta que aparece de a poco.
+   La escena todavía no se montó: arranca cuando se cierra la nota. */
+.story-note {
+  position: relative;
+  z-index: 8;
+  min-height: 100svh;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 22px;
+  padding: 96px 16px 40px;
+  background: radial-gradient(ellipse at 50% 38%, color-mix(in srgb, var(--luz) 16%, transparent), transparent 55%);
+}
+.note-sheet {
+  width: min(38rem, 100%);
+  padding: 38px clamp(22px, 6vw, 46px) 30px;
+  background:
+    radial-gradient(ellipse at 80% 12%, rgba(140, 100, 50, 0.14), transparent 45%),
+    linear-gradient(180deg, var(--papel), var(--papel-sombra));
+  color: var(--tinta-papel);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), inset 0 0 50px rgba(90, 60, 30, 0.25);
+  transform: rotate(0.5deg);
+  animation: ink-in 0.8s ease-out both;
+}
+.note-eyebrow { margin: 0 0 6px; color: var(--vino); font-size: 0.9rem; font-style: italic; }
+.note-sheet h2 { margin: 0 0 16px; font-family: var(--titulo); font-size: clamp(1.4rem, 4vw, 2rem); font-weight: 500; line-height: 1.2; text-wrap: balance; animation: ink-in 1s 0.3s ease-out both; }
+.note-text { margin: 0; font-size: 1.1rem; font-style: italic; line-height: 1.7; animation: ink-in 1.4s 0.7s ease-out both; }
+.note-goal { margin-top: 22px; padding-top: 14px; border-top: 1px solid rgba(46, 28, 18, 0.2); animation: ink-in 1s 1.5s ease-out both; }
+.note-goal small { color: var(--vino); font-size: 0.86rem; font-style: italic; }
+.note-goal p { margin: 4px 0 0; font-size: 1rem; line-height: 1.5; }
+.note-close {
+  border: 1px solid var(--luz-suave);
+  padding: 12px 26px;
+  background: transparent;
+  color: var(--luz-suave);
+  font-family: var(--titulo);
+  font-size: 0.9rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  animation: ink-in 1s 1.8s ease-out both;
+}
+.note-close:hover { background: var(--luz-suave); color: var(--tinta); }
+.recap-overlay { position: fixed; z-index: 55; inset: 0; overflow-y: auto; background: rgba(8, 5, 3, 0.82); backdrop-filter: blur(3px); }
+.story-note.is-recap { background: none; }
+.recap-lines { margin: 0; padding: 0 0 0 1.1em; font-size: 1.06rem; line-height: 1.6; }
+.recap-lines li { margin-bottom: 8px; animation: ink-in 1s ease-out both; }
+.recap-lines li:nth-child(2) { animation-delay: 0.3s; }
+.recap-lines li:nth-child(3) { animation-delay: 0.6s; }
+.recap-lines li:nth-child(4) { animation-delay: 0.9s; }
+.recap-lines li:nth-child(5) { animation-delay: 1.2s; }
+
+/* Pista del diario por tardar: un renglón de tinta en la tarjeta de abajo. */
+.diary-hint { margin: 0 0 12px; padding: 8px 12px; border-left: 2px solid var(--luz-suave); background: color-mix(in srgb, var(--luz-suave) 8%, transparent); font-size: 0.95rem; font-style: italic; line-height: 1.45; animation: ink-in 1s ease-out both; }
+.diary-hint small { display: block; color: var(--luz-suave); font-size: 0.82rem; }
+
+/* Práctica de hechizos en Ollivanders. */
+.practice-glyph { width: 96px; margin: 4px auto 8px; }
+.practice-steps { display: flex; justify-content: center; gap: 8px; margin: 0 0 10px; padding: 0; list-style: none; font-size: 0.85rem; }
+.practice-steps li { padding: 2px 10px; border: 1px solid var(--linea); border-radius: 999px; color: var(--ceniza); }
+.practice-steps li[data-now="true"] { border-color: var(--luz-suave); color: var(--luz-suave); }
+.practice-steps li[data-done="true"] { border-color: var(--luz-suave); background: var(--luz-suave); color: var(--tinta); }
+
+/* Contador del recorrido en el final. */
+.completion-stats { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 34px; margin: 26px 0 0; animation: ink-in 1.2s 2.6s ease-out both; }
+.completion-stats div { display: grid; gap: 2px; text-align: center; }
+.completion-stats dt { color: var(--ceniza); font-size: 0.85rem; font-style: italic; }
+.completion-stats dd { margin: 0; color: var(--casa-clara); font-family: var(--titulo); font-size: 1.3rem; }
+
+/* Medidor de FPS (solo con ?fps en la URL). */
+.fps-meter { position: fixed; z-index: 90; left: 8px; bottom: 8px; padding: 4px 8px; background: rgba(0, 0, 0, 0.75); color: #9fe8a0; font: 12px/1.2 ui-monospace, monospace; pointer-events: none; }
+
+/* Rendimiento: el desenfoque detrás de los paneles se recalcula en cada
+   cuadro de la escena. Si la escena bajó a calidad baja, y siempre en el
+   celular, los paneles van opacos y sin desenfoque. */
+.experience:has(.three-stage[data-quality="baja"]) .hud { backdrop-filter: none; background: color-mix(in srgb, var(--tinta) 90%, transparent); }
+
 /* Mapa del Merodeador: un pergamino encima de todo. La tinta aparece desde
    el centro al jurar y se borra al decir "Travesura realizada". */
 .map-overlay {
@@ -1187,6 +1264,9 @@ button { color: inherit; font: inherit; }
   .place-copy { font-size: 0.98rem; }
 
   .sorting-hud, .wand-hud, .parsel-hud, .cloak-hud { top: 108px; padding: 12px 16px; }
+  .hud { backdrop-filter: none; background: color-mix(in srgb, var(--tinta) 90%, transparent); }
+  .story-note { padding-top: 76px; }
+  .practice-glyph { width: 72px; }
   .cloak-preview { width: 104px; }
   .map-overlay { padding: 8px; }
   .marauders { max-height: calc(100svh - 16px); padding: 12px 10px; }

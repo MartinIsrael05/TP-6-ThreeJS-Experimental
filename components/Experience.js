@@ -7,20 +7,26 @@ import { diaryTexts, getDiaryEntryByItem } from "@/data/diary";
 import { getHouse } from "@/data/houses";
 import {
   ending as fallbackEnding,
+  hintTexts,
   itemTypeLabels,
   lockedPlace,
   persistenceLabels,
   places,
   prologue,
+  recapTexts,
+  secretEnding,
+  secretItem,
+  statsTexts,
 } from "@/data/places";
 import { spells } from "@/data/spells";
-import { getWand, wandName } from "@/data/wands";
+import { getWand, wandName, wandShop } from "@/data/wands";
 import { useProgress } from "@/hooks/useProgress";
 import { useSorting } from "@/hooks/useSorting";
 import { useWandShop } from "@/hooks/useWandShop";
-import { createShakeDetector } from "@/lib/gestures/shake";
+import { askMotionPermission, createShakeDetector } from "@/lib/gestures/shake";
 import { installAudioUnlock, setAmbience } from "@/lib/audio/engine";
 import { playSfx } from "@/lib/audio/sfx";
+import { addSeconds, countSpell, markVisit, readStats, resetStats } from "@/lib/stats";
 import { beginTransition, markSceneReady } from "@/lib/transition";
 import { mapTexts } from "@/data/map";
 import AuthPanel from "@/components/AuthPanel";
@@ -29,7 +35,9 @@ import HandControl from "@/components/HandControl";
 import MaraudersMap from "@/components/MaraudersMap";
 import ParselHud from "@/components/ParselHud";
 import Prologue from "@/components/Prologue";
+import RecapNote from "@/components/RecapNote";
 import SortingHud from "@/components/SortingHud";
+import StoryNote from "@/components/StoryNote";
 import SoundToggle from "@/components/SoundToggle";
 import SpellCanvas from "@/components/SpellCanvas";
 import SpellGlyph from "@/components/SpellGlyph";
@@ -49,16 +57,30 @@ const CAST_MS = 1800;
 const HINT_MS = 3200;
 // Sonido del botón alternativo en los lugares que no tienen hechizo.
 const CAST_SOUND = { camara: "hiss", trofeos: "cloak" };
-// El juramento del mapa se hace una vez por sesión.
+// El juramento del mapa se hace una vez por sesión, y la nota del diario de
+// cada lugar también.
 const SWORN_KEY = "hogwarts-mapa-jurado";
+const NOTES_KEY = "hogwarts-notas-leidas";
 
-function readSworn() {
+function readSession(key, fallback) {
   try {
-    return typeof window !== "undefined" && window.sessionStorage.getItem(SWORN_KEY) === "1";
+    if (typeof window === "undefined") return fallback;
+    return JSON.parse(window.sessionStorage.getItem(key) || "null") ?? fallback;
   } catch {
-    return false;
+    return fallback;
   }
 }
+
+function writeSession(key, value) {
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify(value));
+  } catch {
+    // Sin sessionStorage se vuelve a pedir; no pasa nada.
+  }
+}
+
+const readSworn = () => readSession(SWORN_KEY, 0) === 1;
+const readNotes = () => readSession(NOTES_KEY, []);
 
 export default function Experience({ initialPlaceId }) {
   const router = useRouter();
@@ -91,6 +113,14 @@ export default function Experience({ initialPlaceId }) {
   // mientras las huellas caminan hacia otro lugar.
   const [mapState, setMapState] = useState(null);
   const [sworn, setSworn] = useState(readSworn);
+  // Lugares cuya nota del diario ya leíste en esta sesión, pista que el
+  // diario escribió por tardar ({ placeId, level }), resumen al volver y
+  // contador del recorrido para el final.
+  const [notesRead, setNotesRead] = useState(readNotes);
+  const [hintLevel, setHintLevel] = useState(null);
+  const [recapOpen, setRecapOpen] = useState(false);
+  const [finalStats, setFinalStats] = useState(null);
+  const recapChecked = useRef(false);
   const castTimer = useRef(0);
   const finaleTimer = useRef(0);
   const {
@@ -117,7 +147,7 @@ export default function Experience({ initialPlaceId }) {
     wand: wandId,
   } = useProgress();
   const sorting = useSorting({ onSorted: chooseHouse });
-  const shop = useWandShop({ onChoose: handleWandChosen });
+  const shop = useWandShop({ onChoose: handleWandChosen, onPracticed: () => completeItem("varita") });
   const shopRef = useRef(shop);
   const place = places[activeIndex];
   const nextPlace = places[activeIndex + 1];
@@ -139,9 +169,13 @@ export default function Experience({ initialPlaceId }) {
   const house = houseId ? getHouse(houseId) : null;
   const wand = wandId ? getWand(wandId) : null;
   const endingHouse = endingHouseId ? getHouse(endingHouseId) : null;
-  const finale = endingHouse
-    ? { eyebrow: `Final de ${endingHouse.name}`, ...endingHouse.ending }
-    : fallbackEnding;
+  const secretFound = collected.has(secretItem.id);
+  // Con la cuarta página el final cambia, en el color de tu casa.
+  const finale = secretFound
+    ? { ...secretEnding, eyebrow: secretEnding.eyebrow(endingHouse?.name) }
+    : endingHouse
+      ? { eyebrow: `Final de ${endingHouse.name}`, ...endingHouse.ending }
+      : fallbackEnding;
   const itemDetail =
     place.item.id === "sombrero" && house
       ? house.name
@@ -156,6 +190,14 @@ export default function Experience({ initialPlaceId }) {
   const locked = entered && !canOpen(activeIndex) && !isCollected;
   const lastOpenPlace = places.findLast((_, index) => canOpen(index));
   const diaryEntry = getDiaryEntryByItem(place.item.id);
+  // La nota del diario se abre al llegar a un lugar sin resolver; la escena
+  // se monta recién cuando la cerrás.
+  const noteOpen = entered && !locked && !isCollected && Boolean(place.note) && !notesRead.includes(place.id);
+  // En Ollivanders, durante la práctica, el lienzo espera el hechizo que toca.
+  const practiceSpell = place.item.id === "varita" ? shop.practiceSpell : null;
+  const canvasSpell = practiceSpell ?? (awaitingSpell ? spell : null);
+  const levelHint =
+    hintLevel?.placeId === place.id && !isCollected && !casting ? place.hints?.[hintLevel.level - 1] : null;
 
   useEffect(() => {
     if (!flash) return;
@@ -171,10 +213,48 @@ export default function Experience({ initialPlaceId }) {
     if (ready && initialPlaceId && !locked) setCurrentPlace(initialPlaceId);
   }, [ready, initialPlaceId, setCurrentPlace, authUser, locked]);
 
-  // Sin escena (lugar bloqueado) no hay primer cuadro que esperar.
+  // Sin escena (lugar bloqueado, o la nota del diario abierta) no hay primer
+  // cuadro que esperar para levantar el velo.
   useEffect(() => {
-    if (locked && settled) markSceneReady();
-  }, [locked, settled]);
+    if ((locked && settled) || (ready && noteOpen)) markSceneReady();
+  }, [locked, settled, ready, noteOpen]);
+
+  // Pistas: si tardás, el diario escribe una más cada tanto. El reloj corre
+  // solo con la escena en marcha (la nota ya cerrada) y el lugar sin resolver.
+  const hintsRunning = entered && ready && !locked && !noteOpen && !isCollected && Boolean(place.hints?.length);
+  useEffect(() => {
+    if (!hintsRunning) return undefined;
+    const timers = hintTexts.after.slice(0, place.hints.length).map((seconds, index) =>
+      window.setTimeout(() => {
+        setHintLevel({ placeId: place.id, level: index + 1 });
+        playSfx("page");
+      }, seconds * 1000),
+    );
+    return () => timers.forEach((timer) => window.clearTimeout(timer));
+  }, [hintsRunning, place.id, place.hints]);
+
+  // Contador: suma los segundos que pasás en el castillo con la pestaña a la
+  // vista (la portada y el final no cuentan).
+  useEffect(() => {
+    if (!entered || !ready || completionOpen) return undefined;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") addSeconds(1);
+    }, 1000);
+    return () => window.clearInterval(interval);
+  }, [entered, ready, completionOpen]);
+
+  // "Lo que pasó hasta ahora": la primera vez que cargás el sitio en un día
+  // distinto al de tu última visita, si ya habías avanzado. Con ?resumen en
+  // la URL aparece siempre (sirve para mostrarlo en la demo).
+  // Se decide una sola vez (recapChecked), así que el timeout no se cancela
+  // aunque collected cambie justo después.
+  useEffect(() => {
+    if (!ready || !settled || recapChecked.current) return;
+    recapChecked.current = true;
+    const returning = markVisit();
+    const forced = new URLSearchParams(window.location.search).has("resumen");
+    if ((returning || forced) && collected.size > 0) window.setTimeout(() => setRecapOpen(true), 0);
+  }, [ready, settled, collected]);
 
   // La tecla M abre y cierra el mapa (salvo mientras escribís).
   useEffect(() => {
@@ -207,7 +287,7 @@ export default function Experience({ initialPlaceId }) {
 
   useEffect(() => {
     if (!hint) return undefined;
-    const timeout = window.setTimeout(() => setHint(null), HINT_MS);
+    const timeout = window.setTimeout(() => setHint(null), hint.ms ?? HINT_MS);
     return () => window.clearTimeout(timeout);
   }, [hint]);
 
@@ -247,6 +327,7 @@ export default function Experience({ initialPlaceId }) {
       // la fanfarria de la casa, cuando las tapas terminan de juntarse.
       const finalHouse = houseId;
       finaleTimer.current = window.setTimeout(() => {
+        setFinalStats(readStats());
         setCompletionOpen(true);
         finaleTimer.current = window.setTimeout(() => playSfx("fanfare", { house: finalHouse }), 1400);
       }, 2200);
@@ -259,8 +340,15 @@ export default function Experience({ initialPlaceId }) {
       if (!sorting.phase) startSorting();
       return;
     }
-    if (place.item.id === "varita") shop.pickBox();
+    if (place.item.id === "varita") pickBox();
     else castSpell();
+  }
+
+  // Abrir una caja en Ollivanders. Es un toque del usuario: el momento en que
+  // iOS deja pedir permiso para sacudir el teléfono.
+  function pickBox() {
+    askMotionPermission();
+    shop.pickBox();
   }
 
   // El Sombrero empieza a preguntar: el relato se pliega para dejar ver los
@@ -279,6 +367,7 @@ export default function Experience({ initialPlaceId }) {
   // y al rato el lugar queda resuelto, haya WebGL o no.
   function castSpell() {
     const itemId = place.item.id;
+    if (spell) countSpell();
     setCastingPlaceId(place.id);
     playSfx(spell?.id === "lumos" ? "lumos" : spell ? "spell" : CAST_SOUND[place.id] ?? "spell");
     castTimer.current = window.setTimeout(() => {
@@ -291,19 +380,34 @@ export default function Experience({ initialPlaceId }) {
   // uno y otro para que no se resuelva todo a fuerza de dibujar.
   function handleDrawnSpell(cast) {
     const now = Date.now();
+    // Práctica en Ollivanders: solo vale el hechizo que toca.
+    if (practiceSpell) {
+      if (shop.practice(cast.id)) {
+        countSpell();
+        playSfx(cast.id === "lumos" ? "lumos" : "spell");
+        setDrawnSpell({ placeId: place.id, id: cast.id, at: now });
+        setHint({ placeId: place.id, text: wandShop.practice.done(practiceSpell.incantation) });
+      } else {
+        playSfx("fizzle");
+        setHint({ placeId: place.id, text: wandShop.practice.wrong(practiceSpell.incantation) });
+      }
+      return;
+    }
     if (!cast.once && castHere && now - castHere.at < cast.cooldown * 1000) {
       playSfx("fizzle");
       setHint({ placeId: place.id, text: "La varita todavía chisporrotea. Esperá un momento." });
       return;
     }
+    countSpell();
     playSfx(cast.id === "lumos" ? "lumos" : "spell");
     setDrawnSpell({ placeId: place.id, id: cast.id, at: now });
     setHint(null);
   }
 
   function handleMissedSpell() {
+    const expected = practiceSpell ?? spell;
     playSfx("fizzle");
-    setHint({ placeId: place.id, text: `La varita chisporroteó. Probá otra vez: ${spell.gesture.shape}.` });
+    setHint({ placeId: place.id, text: `La varita chisporroteó. Probá otra vez: ${expected.gesture.shape}.` });
   }
 
   // La escena avisa que el puzzle se resolvió jugando.
@@ -311,10 +415,48 @@ export default function Experience({ initialPlaceId }) {
     if (!casting) completeItem(place.item.id);
   }
 
+  // La escena cuenta algo del juego (otra vuelta, otro mensaje).
+  function handleStatus(text) {
+    setHint({ placeId: place.id, text, ms: 4500 });
+  }
+
+  // La cuarta página: escondida en la Sala de trofeos, cambia el final.
+  function handleSecret() {
+    if (collected.has(secretItem.id)) return;
+    collect(secretItem.id);
+    setFlash(true);
+    playSfx("page");
+    setHint({ placeId: place.id, text: hintTexts.secretFound, ms: 6000 });
+  }
+
+  // Quedarte con la varita la guarda y te enseña los hechizos; el lugar se
+  // resuelve después de practicarlos (onPracticed).
   function handleWandChosen(chosenWandId) {
     chooseWand(chosenWandId);
     spells.forEach((spell) => learnSpell(spell.id));
-    completeItem("varita");
+  }
+
+  function closeNote() {
+    const next = [...notesRead, place.id];
+    setNotesRead(next);
+    writeSession(NOTES_KEY, next);
+    // El relato ya lo leíste en la nota: el panel arranca plegado.
+    setStoryClosedFor(place.id);
+    playSfx("page");
+  }
+
+  // Líneas del "Lo que pasó hasta ahora", armadas con el progreso.
+  function recapLines() {
+    const pages = ["pagina-1", "pagina-2", "pagina-3"].filter((id) => collected.has(id)).length;
+    const savedPlace = places.find((entry) => entry.id === savedPlaceId);
+    const pending = places.find((entry) => !collected.has(entry.item.id));
+    return [
+      house ? recapTexts.house(house.name) : recapTexts.noHouse,
+      wand && recapTexts.wand(wandName(wand)),
+      recapTexts.pages(pages, secretFound),
+      savedPlace && recapTexts.where(savedPlace.label),
+      pending ? recapTexts.next(`${pending.label}. ${pending.instruction}`) : recapTexts.done,
+    ].filter(Boolean);
   }
 
   function canOpen(index) {
@@ -358,11 +500,7 @@ export default function Experience({ initialPlaceId }) {
   function swear() {
     playSfx("spell", { pitch: -5 });
     setSworn(true);
-    try {
-      window.sessionStorage.setItem(SWORN_KEY, "1");
-    } catch {
-      // Sin sessionStorage el juramento se pide de nuevo; no pasa nada.
-    }
+    writeSession(SWORN_KEY, 1);
   }
 
   function closeMap() {
@@ -375,6 +513,11 @@ export default function Experience({ initialPlaceId }) {
 
   async function handleReset() {
     setCompletionOpen(false);
+    // Empezar de nuevo también pone en cero el contador y vuelve a mostrar
+    // las notas del diario.
+    resetStats();
+    setNotesRead([]);
+    writeSession(NOTES_KEY, []);
     try {
       await reset();
     } finally {
@@ -460,7 +603,9 @@ export default function Experience({ initialPlaceId }) {
         </section>
       )}
 
-      {entered && !locked && (
+      {noteOpen && <StoryNote place={place} onClose={closeNote} />}
+
+      {entered && !locked && !noteOpen && (
         <section className="castle" aria-labelledby="place-title">
           {/* La escena ocupa toda la pantalla; tocarla pliega el relato. */}
           <div className="stage" onPointerDown={() => setStoryClosedFor(place.id)}>
@@ -474,7 +619,7 @@ export default function Experience({ initialPlaceId }) {
               house={houseId}
               trial={shop.trial}
               heldWand={shop.held?.id ?? wandId}
-              onPickBox={shop.pickBox}
+              onPickBox={pickBox}
               onShake={() => shop.shake()}
               spellCast={castHere}
               sortingQuestion={sorting.question}
@@ -485,9 +630,12 @@ export default function Experience({ initialPlaceId }) {
               onParselState={setParselState}
               cloakRef={cloakRef}
               onCloakState={setCloakState}
+              onStatus={handleStatus}
+              onSecret={handleSecret}
+              secretFound={secretFound}
             />
             <SpellCanvas
-              spell={awaitingSpell ? spell : null}
+              spell={canvasSpell}
               onCast={handleDrawnSpell}
               onMiss={handleMissedSpell}
             />
@@ -607,6 +755,12 @@ export default function Experience({ initialPlaceId }) {
                 {hintHere}
               </p>
             )}
+            {/* Pista que el diario escribe solo si tardás. */}
+            {levelHint && !hintHere && (
+              <p className="diary-hint" role="status" key={levelHint}>
+                <small>{hintTexts.prefix}</small> {levelHint}
+              </p>
+            )}
             {!isCollected && usesDialog && !sorting.phase && shop.phase === "browsing" && (
               <button onClick={handleCollect}>{alternativeLabel}</button>
             )}
@@ -656,6 +810,22 @@ export default function Experience({ initialPlaceId }) {
           <p className="completion-eyebrow">{finale.eyebrow}</p>
           <h2 id="completion-title">{finale.title}</h2>
           <p className="completion-copy">{finale.copy}</p>
+          {finalStats && (
+            <dl className="completion-stats" aria-label={statsTexts.title}>
+              <div>
+                <dt>{statsTexts.time}</dt>
+                <dd>{statsTexts.formatTime(finalStats.seconds)}</dd>
+              </div>
+              <div>
+                <dt>{statsTexts.spells}</dt>
+                <dd>{finalStats.spells}</dd>
+              </div>
+              <div>
+                <dt>{statsTexts.pages}</dt>
+                <dd>{secretFound ? "4 de 4" : "3 de 4"}</dd>
+              </div>
+            </dl>
+          )}
           <div className="completion-actions">
             <button onClick={() => setCompletionOpen(false)}>
               Seguir en el castillo
@@ -679,6 +849,8 @@ export default function Experience({ initialPlaceId }) {
           onClose={closeMap}
         />
       )}
+
+      {recapOpen && <RecapNote lines={recapLines()} onClose={() => setRecapOpen(false)} />}
 
       {authOpen && (
         <AuthPanel

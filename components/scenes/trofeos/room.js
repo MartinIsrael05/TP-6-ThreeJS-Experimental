@@ -223,11 +223,13 @@ export function buildRoom(ctx, { armorZ }) {
   exit.add(frame, leaf, glow);
   group.add(exit);
 
-  // Antorchas: soporte, llama con bloom y una luz cálida.
+  // Antorchas: soporte, llama con bloom y una luz cálida. Solo una de cada
+  // dos tiene luz de verdad: cada PointLight encarece todos los materiales
+  // de la escena, y con la llama y el bloom la diferencia casi no se nota.
   const flames = [];
   const bracketMaterial = new THREE.MeshStandardMaterial({ color: "#1b1714", metalness: 0.6, roughness: 0.5 });
   const flameGeometry = new THREE.ConeGeometry(0.05, 0.16, 10);
-  [[-1, 5], [1, 2], [-1, -1.5], [1, -8]].forEach(([side, z]) => {
+  [[-1, 5], [1, 2], [-1, -1.5], [1, -8]].forEach(([side, z], index) => {
     const torch = new THREE.Group();
     torch.position.set(side * (halfWidth - 0.12), 2.9, z);
     const bracket = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.025, 0.4, 8), bracketMaterial);
@@ -236,9 +238,11 @@ export function buildRoom(ctx, { armorZ }) {
     const flame = new THREE.Mesh(flameGeometry, new THREE.MeshBasicMaterial({ color: new THREE.Color(2.2, 0.9, 0.22) }));
     flame.position.set(-side * 0.1, 0.26, 0);
     torch.add(flame);
-    const light = new THREE.PointLight("#ff9d4d", 5, 7, 1.6);
-    light.position.set(-side * 0.35, 0.35, 0);
-    torch.add(light);
+    const light = index % 2 === 0 ? new THREE.PointLight("#ff9d4d", 6, 9, 1.6) : null;
+    if (light) {
+      light.position.set(-side * 0.35, 0.35, 0);
+      torch.add(light);
+    }
     group.add(torch);
     flames.push({ flame, light, phase: Math.random() * 10 });
   });

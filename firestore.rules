@@ -12,7 +12,8 @@ rules_version = '2';
 //   - house: string o null. Una de las 4 casas.
 //   - wand: string o null. Una de las 4 varitas.
 //   - spells: lista de strings. Hasta 3 hechizos válidos, sin repetir.
-//   - items: lista de strings. Hasta 7 ítems válidos, sin repetir.
+//   - items: lista de strings. Hasta 8 ítems válidos, sin repetir (los 7
+//     lugares más pagina-4, la cuarta página escondida).
 //   - currentPlace: string o null. Uno de los 7 lugares.
 //   - ending: string o null. Igual a house, y solo si items incluye
 //     'camara-abierta'.
@@ -85,7 +86,7 @@ service cloud.firestore {
     }
 
     function validItems() {
-      return ['sombrero', 'varita', 'pagina-1', 'pagina-2', 'pagina-3', 'capa',
+      return ['sombrero', 'varita', 'pagina-1', 'pagina-2', 'pagina-3', 'pagina-4', 'capa',
               'camara-abierta'];
     }
 
@@ -119,7 +120,7 @@ service cloud.firestore {
         && isNullOr(data.wand, validWands())
         && isNullOr(data.currentPlace, validPlaces())
         && isIdList(data.spells, validSpells(), 3)
-        && isIdList(data.items, validItems(), 7)
+        && isIdList(data.items, validItems(), 8)
         && (data.ending == null
             || (data.ending == data.house && 'camara-abierta' in data.items))
         && data.updatedAt == request.time;

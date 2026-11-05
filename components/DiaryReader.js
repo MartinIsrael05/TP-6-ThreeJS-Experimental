@@ -16,9 +16,13 @@ export default function DiaryReader({ entry }) {
   const { collected, currentPlace, ready, settled } = useProgress();
   const found = collected.has(entry.itemId);
   const waiting = !ready || (!found && !settled);
-  const index = diaryEntries.indexOf(entry);
-  const previous = diaryEntries[index - 1];
-  const next = diaryEntries[index + 1];
+  // La página escondida no se anuncia: solo entra en la navegación (y en
+  // la cuenta) cuando ya la encontraste.
+  const visible = diaryEntries.filter((candidate) => !candidate.hidden || collected.has(candidate.itemId) || candidate === entry);
+  const index = visible.indexOf(entry);
+  const previous = visible[index - 1];
+  const next = visible[index + 1];
+  const total = diaryEntries.filter((candidate) => !candidate.hidden).length;
   const foundPlace = getPlace(entry.placeId);
   const backPlace = getPlace(currentPlace) ?? foundPlace;
 
@@ -43,7 +47,7 @@ export default function DiaryReader({ entry }) {
   return (
     <main className="diary-view">
       <article className={`diary-sheet ${found ? "is-found" : "is-missing"}`} aria-labelledby="diary-title">
-        <p className="diary-eyebrow">{diaryTexts.eyebrow(entry.number, diaryEntries.length)}</p>
+        <p className="diary-eyebrow">{entry.hidden ? diaryTexts.hiddenEyebrow : diaryTexts.eyebrow(entry.number, total)}</p>
         {found ? (
           <>
             <p className="diary-date">{entry.date}</p>
@@ -57,6 +61,11 @@ export default function DiaryReader({ entry }) {
               {diaryTexts.signature}
             </p>
             <p className="diary-found">{diaryTexts.foundIn(foundPlace.label)}</p>
+          </>
+        ) : entry.hidden ? (
+          <>
+            <h1 id="diary-title">{diaryTexts.hiddenTitle}</h1>
+            <p className="diary-found">{diaryTexts.hiddenCopy}</p>
           </>
         ) : (
           <>
@@ -72,8 +81,8 @@ export default function DiaryReader({ entry }) {
         ) : (
           <span />
         )}
-        <button onClick={() => goToPlace(found ? backPlace : foundPlace)}>
-          {found ? diaryTexts.back : diaryTexts.goFind(foundPlace.label)}
+        <button onClick={() => goToPlace(found || entry.hidden ? backPlace : foundPlace)}>
+          {found || entry.hidden ? diaryTexts.back : diaryTexts.goFind(foundPlace.label)}
         </button>
         {next ? <Link href={`/diario/${next.number}`}>{diaryTexts.next}</Link> : <span />}
       </nav>

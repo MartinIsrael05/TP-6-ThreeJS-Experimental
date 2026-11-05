@@ -22,6 +22,13 @@ const NEAR_MISS = 2.6;
 // Accio dibujado: la snitch se acerca hasta acá y aguanta unos segundos.
 const ACCIO_POINT = new THREE.Vector3(0, 4.2, 3);
 const ACCIO_SECONDS = 3.5;
+// Vueltas: la primera vez que la atrapás se suelta y vuela más rápido, y
+// tarda más en cansarse.
+const ROUNDS = [
+  { speed: 1, tire: TIRE_SECONDS },
+  { speed: 1.3, tire: 48 },
+];
+const SLIP_SECONDS = 1;
 
 function setupQuidditch(ctx) {
   const { scene, camera, renderer, props } = ctx;
@@ -68,6 +75,22 @@ function setupQuidditch(ctx) {
   let lastSpellAt = props.current.spellCast?.at ?? 0;
   let caughtFor = caughtAtStart ? 99 : 0;
   let solvedByPlaying = false;
+  let round = caughtAtStart ? ROUNDS.length - 1 : 0;
+  const lastRound = ROUNDS.length - 1;
+
+  // Se suelta de la mano: vuelve a volar, más rápida y descansada.
+  function slip() {
+    state = "flying";
+    round += 1;
+    flyTime = 0;
+    misses = 0;
+    solvedByPlaying = false;
+    flight.dart();
+    playSfx("whoosh", { pan: 0 });
+    bursts.emit(flight.position, { count: 80, speed: 3, lifetime: 0.9 });
+    const text = props.current.place.status?.escaped;
+    if (text) props.current.onStatus?.(text);
+  }
 
   function catchIt(byPlaying) {
     state = "caught";
@@ -110,8 +133,10 @@ function setupQuidditch(ctx) {
     update({ elapsed, delta, reducedMotion }) {
       const step = reducedMotion ? 1 / 60 : delta;
 
+      // Con el botón alternativo viene directo y no se suelta.
       if (props.current.casting && state === "flying") {
         state = "summoned";
+        round = lastRound;
         bursts.emit(CAUGHT_POINT, { count: 40, speed: 1.5, lifetime: 0.6 });
       }
 
@@ -138,19 +163,22 @@ function setupQuidditch(ctx) {
       } else if (state === "flying") {
         flyTime += step;
         // Con prefers-reduced-motion vuela siempre a la velocidad más lenta.
-        const fatigue = reducedMotion ? 1 : Math.min(1, flyTime / TIRE_SECONDS + misses * 0.12);
-        flight.update(step, fatigue);
+        const fatigue = reducedMotion ? 1 : Math.min(1, flyTime / ROUNDS[round].tire + misses * 0.12);
+        flight.update(step, fatigue, reducedMotion ? 1 : ROUNDS[round].speed);
       } else if (state === "summoned") {
         flight.pull(CAUGHT_POINT, step, 4);
         if (flight.position.distanceTo(CAUGHT_POINT) < 0.3) catchIt(false);
       } else {
         caughtFor += step;
         flight.pull(CAUGHT_POINT.clone().add(new THREE.Vector3(0, Math.sin(elapsed * 1.5) * 0.06, 0)), step, 3);
-        if (caughtFor > 0.5) {
+        // Primera vuelta atrapada jugando: forcejea un segundo y se suelta.
+        if (round < lastRound && solvedByPlaying && caughtFor > SLIP_SECONDS) {
+          slip();
+        } else if (caughtFor > 0.5 && round === lastRound) {
           page.visible = true;
           page.scale.setScalar(damp(page.scale.x, 1, 4, step));
         }
-        if (solvedByPlaying && caughtFor > 1.3) {
+        if (solvedByPlaying && round === lastRound && caughtFor > 1.3) {
           solvedByPlaying = false;
           props.current.onSolve();
         }
@@ -188,9 +216,9 @@ function setupQuidditch(ctx) {
   };
 }
 
-export default function Quidditch({ place, discovered, casting, onSolve, spellCast }) {
+export default function Quidditch({ place, discovered, casting, onSolve, spellCast, onStatus }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupQuidditch, { place, discovered, casting, onSolve, spellCast }, place.id);
+  useThreeScene(mountRef, setupQuidditch, { place, discovered, casting, onSolve, spellCast, onStatus }, place.id);
 
   return (
     <div

@@ -10,9 +10,19 @@ import { createPointer, damp, easeInOut } from "@/lib/three/pointer";
 import { createComposer } from "@/lib/three/postprocessing";
 import { createSparks } from "@/lib/three/sparks";
 
-// Cuartos de vuelta que le faltan a cada tramo al empezar: ninguno arranca
-// bien puesto y cada uno necesita una cantidad distinta de toques.
-const START_TURNS = [1, 2, 3];
+// Cuartos de vuelta que le faltan a cada tramo al empezar cada vuelta:
+// ninguno arranca bien puesto y cada uno necesita una cantidad distinta de
+// toques. Al terminar la primera, las escaleras "cambian de idea" y se
+// desordenan otra vez.
+const ROUNDS = [
+  [1, 2, 3],
+  [3, 1, 2],
+];
+const START_TURNS = ROUNDS[0];
+// En la segunda vuelta, si pasás un rato sin tocar nada, un tramo bien puesto
+// gira solo (pocas veces): las escaleras cambian de idea mientras dudás.
+const RESTLESS_TIMES = 2;
+const RESTLESS_SECONDS = 10;
 const QUARTER = Math.PI / 2;
 const TURN_SECONDS = 0.7;
 const SOLVE_SECONDS = 1.8;
@@ -102,6 +112,11 @@ function setupStaircase(ctx) {
   let solving = -1; // segundos desde que se alineó todo, o -1
   let solvedByPlaying = false;
   let path = [];
+  let round = solvedAtStart ? ROUNDS.length - 1 : 0;
+  let changeIn = -1; // segundos hasta que se desordenan otra vez, o -1
+  let restlessLeft = RESTLESS_TIMES;
+  let restlessClock = RESTLESS_SECONDS;
+  const status = props.current.place.status ?? {};
 
   const isAligned = (flight) => flight.turns === 0 && flight.t >= 1;
 
@@ -162,10 +177,27 @@ function setupStaircase(ctx) {
     const alignedCount = flights.filter(isAligned).length;
     playSfx("align", { step: alignedCount * 2 });
     sparks.emit(flight.rune.getWorldPosition(new THREE.Vector3()), { count: 40, speed: 1.5, color: "#7dffb0", lifetime: 0.8 });
-    if (alignedCount === flights.length && !solved && solving < 0) {
+    if (alignedCount === flights.length && !solved && solving < 0 && changeIn < 0) {
+      // Primera vuelta: las escaleras cambian de idea. Con el botón
+      // alternativo se resuelve de una.
+      if (round < ROUNDS.length - 1 && !props.current.casting) {
+        round += 1;
+        changeIn = 1.1;
+        return;
+      }
       solving = 0;
       path = buildPath();
     }
+  }
+
+  // Todos los tramos giran a la vez (cada uno un poco después) hasta quedar
+  // desordenados como manda la vuelta.
+  function scramble() {
+    changeIn = -1;
+    shake = 1;
+    playSfx("stone");
+    flights.forEach((flight, index) => turn(flight, ROUNDS[round][index], index * 0.3));
+    if (status.round2) props.current.onStatus?.(status.round2);
   }
 
   // Arrastrar un tramo lo gira a mano; al soltarlo se acomoda en el cuarto
@@ -186,6 +218,7 @@ function setupStaircase(ctx) {
     flight.duration = 0.35;
     flight.t = 0;
     solvedByPlaying = true;
+    restlessClock = RESTLESS_SECONDS;
     startTurnEffects(flight);
   }
 
@@ -244,6 +277,7 @@ function setupStaircase(ctx) {
     const index = flightUnderPointer();
     if (index < 0 || flights[index].t < 1) return;
     solvedByPlaying = true;
+    restlessClock = RESTLESS_SECONDS;
     turn(flights[index], 1);
   });
 
@@ -301,6 +335,23 @@ function setupStaircase(ctx) {
           turn(flight, 4 - flight.turns, delay);
           delay += 0.35;
         });
+      }
+
+      if (changeIn >= 0) {
+        changeIn -= step;
+        if (changeIn < 0) scramble();
+      }
+
+      // Segunda vuelta: algún tramo ya acomodado gira solo, un par de veces.
+      if (round > 0 && changeIn < 0 && restlessLeft > 0 && !drag && canPlay() && !locked) {
+        restlessClock -= step;
+        const settledFlights = flights.filter((flight) => isAligned(flight));
+        if (restlessClock <= 0 && settledFlights.length > 0 && settledFlights.length < flights.length) {
+          restlessClock = RESTLESS_SECONDS;
+          restlessLeft -= 1;
+          turn(settledFlights[Math.floor(Math.random() * settledFlights.length)], 1);
+          if (status.restless) props.current.onStatus?.(status.restless);
+        }
       }
 
       flights.forEach((flight) => {
@@ -374,9 +425,9 @@ function setupStaircase(ctx) {
   };
 }
 
-export default function GrandStaircase({ place, discovered, casting, onSolve, spellCast }) {
+export default function GrandStaircase({ place, discovered, casting, onSolve, spellCast, onStatus }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupStaircase, { place, discovered, casting, onSolve, spellCast }, place.id);
+  useThreeScene(mountRef, setupStaircase, { place, discovered, casting, onSolve, spellCast, onStatus }, place.id);
 
   return (
     <div

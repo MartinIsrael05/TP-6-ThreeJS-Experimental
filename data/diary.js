@@ -9,6 +9,9 @@ export const diaryTexts = {
   foundIn: (label) => `La encontraste en ${label}.`,
   missingTitle: "Esta página todavía está arrancada.",
   missingCopy: (label) => `La tinta aparece cuando la recuperás en ${label}.`,
+  hiddenEyebrow: "Una página que no estaba en el índice",
+  hiddenTitle: "Esta página no figura en ningún índice.",
+  hiddenCopy: "Alguien la escondió en el castillo. La tercera página da una pista.",
   goFind: (label) => `Buscarla en ${label}`,
   back: "Volver al castillo",
   previous: "Página anterior",
@@ -48,9 +51,24 @@ export const diaryEntries = [
     date: "Junio, hace cincuenta años",
     title: "Nadie vigila el castillo de noche.",
     lines: [
-      "Nadie, salvo el celador y su gata. Cruzá la Sala de trofeos sin que te vean y bajá por el baño clausurado.",
+      "Nadie, salvo el celador y su gata. Cruzá la Sala de trofeos sin que te vean y bajá por el baño clausurado. Mi nombre todavía brilla en una de sus vitrinas.",
       "La puerta te va a hablar en una lengua que todavía no sabés que entendés.",
       "Contestale. Te estuve esperando.",
+    ],
+  },
+  {
+    // Escondida: detrás del escudo con el nombre de Riddle en la Sala de
+    // trofeos. No es un lugar del recorrido y cambia el final.
+    number: "4",
+    itemId: "pagina-4",
+    placeId: "trofeos",
+    hidden: true,
+    date: "Junio, hace cincuenta años",
+    title: "Lo que nadie sabe de mí.",
+    lines: [
+      "Me dieron un premio por servicios especiales al colegio. Lo gané con una mentira: dije que el monstruo ya no estaba.",
+      "Este diario guarda mi recuerdo de esa noche. Mientras exista, puedo volver.",
+      "Un diario como este no se cierra. Se destruye. Pero eso no te lo voy a explicar.",
     ],
   },
 ];

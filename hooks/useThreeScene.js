@@ -3,13 +3,18 @@
 import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { disposeComposer, disposeObject } from "@/lib/three/dispose";
+import { scenesPaused } from "@/lib/three/renderPause";
 import { markSceneReady } from "@/lib/transition";
 
 // Calidad adaptable: después de que la escena arranca (shaders compilados,
-// texturas subidas) se miden los FPS. Si no llegan al mínimo, se apaga el
-// postprocesado y se baja el pixel ratio a 1.
+// texturas subidas) se miden los FPS durante SAMPLE_SECONDS. Si no llegan al
+// mínimo se baja un escalón y se vuelve a medir:
+//   alta   postprocesado y pixel ratio de la pantalla (hasta 2)
+//   media  postprocesado con pixel ratio 1
+//   baja   sin postprocesado, pixel ratio 1 (y la interfaz sin desenfoque)
 const SAMPLE_FROM = 1.5;
-const SAMPLE_TO = 4.5;
+const SAMPLE_SECONDS = 3;
+const SETTLE_SECONDS = 1;
 const MIN_FPS = 40;
 
 // Arma y desarma una escena Three.js dentro de mountRef.
@@ -97,21 +102,30 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
       api.resize?.(width, height);
     }
 
+    // Baja un escalón. Devuelve false si ya no hay nada más que bajar.
     function lowerQuality(fps) {
-      renderer.setPixelRatio(1);
-      if (composer) {
+      if (renderer.getPixelRatio() > 1) {
+        renderer.setPixelRatio(1);
+        mount.dataset.quality = "media";
+        console.info(`Escena 3D a ${Math.round(fps)} FPS: se baja el pixel ratio a 1.`);
+      } else if (composer) {
         disposeComposer(composer);
         composer = null;
+        mount.dataset.quality = "baja";
+        console.info(`Escena 3D a ${Math.round(fps)} FPS: se apaga el postprocesado.`);
+      } else {
+        return false;
       }
       resize();
-      mount.dataset.quality = "baja";
-      console.info(`Escena 3D a ${Math.round(fps)} FPS: se apaga el postprocesado.`);
+      return true;
     }
 
     let animTime = 0;
     let sampleFrames = 0;
     let sampleTime = 0;
-    let sampled = false;
+    // Segundos de reloj desde los que se empieza a medir; Infinity si ya no
+    // hace falta medir más.
+    let sampleFrom = SAMPLE_FROM;
     let shown = false;
     let frameId = 0;
 
@@ -123,6 +137,8 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
       // sale negativo y los suavizados y partículas corren para atrás hasta
       // dar valores infinitos. Se acota entre 0 y 100 ms.
       const delta = THREE.MathUtils.clamp(timer.getDelta(), 0, 0.1);
+      // Tapada por el mapa, el resumen o el velo: no se dibuja ni se mide.
+      if (shown && scenesPaused()) return;
       if (!reducedMotion) animTime += delta;
 
       api.update?.({ elapsed: animTime, delta: reducedMotion ? 0 : delta, reducedMotion });
@@ -134,16 +150,17 @@ export function useThreeScene(mountRef, setup, props, sceneKey) {
         markSceneReady();
       }
 
-      if (sampled) return;
       const elapsed = timer.getElapsed();
-      if (elapsed < SAMPLE_FROM) return;
+      if (elapsed < sampleFrom) return;
       sampleFrames += 1;
       sampleTime += delta;
-      if (elapsed < SAMPLE_TO) return;
-      sampled = true;
+      if (sampleTime < SAMPLE_SECONDS) return;
       const fps = sampleFrames / Math.max(sampleTime, 0.001);
       mount.dataset.fps = String(Math.round(fps));
-      if (fps < MIN_FPS && (composer || renderer.getPixelRatio() > 1)) lowerQuality(fps);
+      sampleFrames = 0;
+      sampleTime = 0;
+      // Si bajó un escalón, se deja asentar y se vuelve a medir.
+      sampleFrom = fps < MIN_FPS && lowerQuality(fps) ? elapsed + SETTLE_SECONDS : Infinity;
     }
 
     const observer = new ResizeObserver(resize);
