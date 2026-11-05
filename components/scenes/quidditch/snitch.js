@@ -86,14 +86,15 @@ export function createFlight(start) {
       boost = 1;
       retarget = 1.2;
     },
-    update(delta, fatigue) {
+    // speed multiplica la velocidad (la segunda vuelta vuela más rápido).
+    update(delta, fatigue, speed = 1) {
       retarget -= delta;
       if (retarget <= 0 || position.distanceTo(target) < 0.8) {
         pickTarget(false);
         retarget = THREE.MathUtils.lerp(0.5, 1.6, fatigue) + Math.random() * 0.6;
       }
       boost = Math.max(0, boost - delta * 1.2);
-      const maxSpeed = THREE.MathUtils.lerp(7.5, 2.4, fatigue) * (1 + boost * 1.4);
+      const maxSpeed = THREE.MathUtils.lerp(7.5, 2.4, fatigue) * (1 + boost * 1.4) * speed;
       steer.subVectors(target, position).setLength(maxSpeed).sub(velocity).clampLength(0, 16 * delta);
       velocity.add(steer).clampLength(0, maxSpeed);
       position.addScaledVector(velocity, delta);

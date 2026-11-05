@@ -8,6 +8,7 @@ import { buildRoom, EXIT } from "@/components/scenes/trofeos/room";
 import { playSfx } from "@/lib/audio/sfx";
 import { createPointer, damp, easeInOut } from "@/lib/three/pointer";
 import { createComposer } from "@/lib/three/postprocessing";
+import { createSparks } from "@/lib/three/sparks";
 
 // Recorrido: la cámara camina por el pasillo de START_Z a END_Z mientras no
 // estés cubierto. Filch hace la ronda en el fondo: de espaldas (away), se da
@@ -16,8 +17,14 @@ import { createComposer } from "@/lib/three/postprocessing";
 const START_Z = 10;
 const END_Z = -4;
 const EYE_HEIGHT = 1.55;
-const WALK_SECONDS = 15;
-const CHECKPOINTS = [0, 0.34, 0.67];
+const WALK_SECONDS = 22;
+const CHECKPOINTS = [0, 0.25, 0.5, 0.75];
+// Amagues: pasada la primera armadura, a veces Filch empieza a darse vuelta
+// y vuelve sin mirar. Quien se descubre apenas gira, pierde tiempo.
+const FEINT_FROM = 0.25;
+const FEINT_CHANCE = 0.35;
+// Escudo de Riddle: detrás está la cuarta página.
+const PLAQUE_POSITION = new THREE.Vector3(-3.05, 1.72, -2.5);
 const TURN_SECONDS = 1.2;
 const BACK_SECONDS = 0.9;
 const CAUGHT_SECONDS = 1.6;
@@ -27,6 +34,49 @@ const DONE_SECONDS = 2;
 const FILCH_Z = -11;
 const NORRIS_POSITION = new THREE.Vector3(-0.9, 0, -9.6);
 const EXIT_LOOK = new THREE.Vector3(EXIT.x, 1.3, EXIT.z);
+
+// Escudo dorado con el nombre de Riddle, colgado en una vitrina. Mira hacia
+// el pasillo (+x) y tiene un área de toque más grande que él, invisible.
+function buildPlaque(ctx) {
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 320;
+  const context = canvas.getContext("2d");
+  context.fillStyle = "#2a1c0c";
+  context.fillRect(0, 0, 256, 320);
+  context.fillStyle = "#f3d27a";
+  context.textAlign = "center";
+  context.font = "italic 30px Georgia, serif";
+  context.fillText("Por servicios", 128, 120);
+  context.fillText("especiales", 128, 158);
+  context.fillText("al colegio", 128, 196);
+  context.font = "bold 38px Georgia, serif";
+  context.fillText("T. M. Riddle", 128, 262);
+  const texture = ctx.track(new THREE.CanvasTexture(canvas));
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  const shield = new THREE.Shape();
+  shield.moveTo(-0.22, 0.28);
+  shield.lineTo(0.22, 0.28);
+  shield.lineTo(0.22, -0.05);
+  shield.quadraticCurveTo(0.2, -0.24, 0, -0.32);
+  shield.quadraticCurveTo(-0.2, -0.24, -0.22, -0.05);
+  shield.closePath();
+  const geometry = new THREE.ShapeGeometry(shield, 12);
+  // UV del canvas: la forma va de -0.22 a 0.22 y de -0.32 a 0.28.
+  const position = geometry.attributes.position;
+  const uv = geometry.attributes.uv;
+  for (let index = 0; index < position.count; index += 1) {
+    uv.setXY(index, (position.getX(index) + 0.22) / 0.44, (position.getY(index) + 0.32) / 0.6);
+  }
+  const material = new THREE.MeshStandardMaterial({ map: texture, metalness: 0.8, roughness: 0.3, emissive: "#ffcf6a", emissiveMap: texture, emissiveIntensity: 0.3 });
+  const face = new THREE.Mesh(geometry, material);
+  const hitArea = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 6), new THREE.MeshBasicMaterial({ visible: false }));
+  const group = new THREE.Group();
+  group.rotation.y = Math.PI / 2;
+  group.add(face, hitArea);
+  return { group, material, hitArea };
+}
 
 const zAt = (progress) => THREE.MathUtils.lerp(START_Z, END_Z, progress);
 const between = (min, max) => min + Math.random() * (max - min);
@@ -56,6 +106,13 @@ function setupTrophies(ctx) {
   norris.group.rotation.y = Math.PI;
   scene.add(norris.group);
 
+  const plaque = buildPlaque(ctx);
+  plaque.group.position.copy(PLAQUE_POSITION);
+  scene.add(plaque.group);
+  const sparks = createSparks({ max: 200, size: 0.1 });
+  scene.add(sparks.points);
+  let secretTaken = Boolean(props.current.secretFound);
+
   const pointer = createPointer(ctx);
 
   // Estado del juego.
@@ -72,6 +129,8 @@ function setupTrophies(ctx) {
   let filchStepClock = 0;
   let walkPhase = 0;
   let facing = 0; // 0 de espaldas, 1 mirando hacia la cámara
+  let backFrom = 1; // desde dónde vuelve a darse vuelta (menos de 1 si amagó)
+  let feint = false;
   let doneReported = solved;
 
   function setMode(next, length = 0) {
@@ -83,7 +142,7 @@ function setupTrophies(ctx) {
   // Le cuenta al panel en qué va el juego (solo cuando algo cambia).
   let reported = "";
   function report(covered) {
-    const shown = mode === "back" ? "looking" : mode === "casting" ? "done" : mode;
+    const shown = mode === "back" ? (feint ? "away" : "looking") : mode === "casting" ? "done" : mode;
     const state = { mode: shown, progress: Math.round(progress * 40) / 40, covered };
     const key = JSON.stringify(state);
     if (key === reported) return;
@@ -91,9 +150,19 @@ function setupTrophies(ctx) {
     props.current.onCloakState?.(state);
   }
 
-  // Tocar la escena también empieza a cruzar.
+  // Tocar el escudo de Riddle suelta la cuarta página; tocar la escena
+  // también empieza a cruzar.
   pointer.onTap(() => {
+    if (!secretTaken && pointer.cast(plaque.hitArea, false).length > 0) {
+      secretTaken = true;
+      sparks.emit(PLAQUE_POSITION, { count: 120, speed: 2.2, color: "#ffd88a", lifetime: 1.2 });
+      props.current.onSecret?.();
+      return;
+    }
     if (mode === "ready") props.current.cloakRef.current.started = true;
+  });
+  pointer.onMove(() => {
+    pointer.setCursor(!secretTaken && pointer.cast(plaque.hitArea, false).length > 0 ? "pointer" : "");
   });
 
   const composer = createComposer({
@@ -131,8 +200,16 @@ function setupTrophies(ctx) {
       mount.dataset.cloak = covered ? "on" : "off";
 
       // Ronda de Filch.
-      if (mode === "away" && clock >= phaseLength) setMode("turning", TURN_SECONDS);
-      else if (mode === "turning" && clock >= phaseLength) {
+      if (mode === "away" && clock >= phaseLength) {
+        feint = progress >= FEINT_FROM && Math.random() < FEINT_CHANCE;
+        setMode("turning", TURN_SECONDS);
+      } else if (mode === "turning" && feint && clock >= phaseLength * 0.55) {
+        // Amague: vuelve a darse vuelta sin llegar a mirar.
+        backFrom = facing;
+        setMode("back", BACK_SECONDS * 0.8);
+        const text = props.current.place.status?.feint;
+        if (text) props.current.onStatus?.(text);
+      } else if (mode === "turning" && clock >= phaseLength) {
         setMode("looking", between(2.2, 3.4));
         exposed = 0;
       } else if (mode === "looking") {
@@ -144,12 +221,21 @@ function setupTrophies(ctx) {
           playSfx("meow", { pan: -0.2 });
           playSfx("error");
           mount.dataset.caught = "true";
-        } else if (clock >= phaseLength) setMode("back", BACK_SECONDS);
-      } else if (mode === "back" && clock >= phaseLength) setMode("away", between(2.6, 4.4));
-      else if (mode === "caught") {
+        } else if (clock >= phaseLength) {
+          backFrom = 1;
+          setMode("back", BACK_SECONDS);
+        }
+      } else if (mode === "back" && clock >= phaseLength) {
+        feint = false;
+        // Pasada la mitad de la sala, Filch descansa menos entre vuelta y vuelta.
+        setMode("away", progress > 0.5 ? between(2, 3.4) : between(2.6, 4.4));
+      } else if (mode === "caught") {
         progress = THREE.MathUtils.lerp(caughtFrom, caughtTo, easeInOut(clock / phaseLength));
         if (clock > 0.5) delete mount.dataset.caught;
-        if (clock >= phaseLength) setMode("back", BACK_SECONDS);
+        if (clock >= phaseLength) {
+          backFrom = 1;
+          setMode("back", BACK_SECONDS);
+        }
       }
 
       // Caminar: solo sin la capa y mientras Filch no te está mirando de
@@ -173,7 +259,7 @@ function setupTrophies(ctx) {
       // Filch: gira según la fase y arrastra los pies cuando camina.
       const targetFacing = mode === "turning" ? easeInOut(clock / phaseLength)
         : mode === "looking" || mode === "caught" ? 1
-          : mode === "back" ? 1 - easeInOut(clock / phaseLength)
+          : mode === "back" ? backFrom * (1 - easeInOut(clock / phaseLength))
             : 0;
       facing = mode === "turning" || mode === "back" ? targetFacing : damp(facing, targetFacing, 6, delta || 1);
       const sweep = mode === "looking" ? Math.sin(clock * 1.6) * 0.32 : 0;
@@ -207,10 +293,14 @@ function setupTrophies(ctx) {
       norris.eyeMaterial.color.setRGB(2.2 * eyes, 1.9 * eyes, 0.35 * eyes);
       norris.tail.rotation.z = Math.sin(elapsed * 1.4) * 0.15;
 
+      // El escudo de Riddle destella cada tanto y más con la linterna encima.
+      plaque.material.emissiveIntensity = secretTaken ? 0.05 : 0.2 + Math.max(0, Math.sin(elapsed * 2.2)) ** 4 * 0.9 + facing * 0.4;
+      sparks.update(reducedMotion ? 1 : step);
+
       room.flames.forEach(({ flame, light, phase }) => {
         const flicker = 1 + Math.sin(elapsed * 9 + phase) * 0.1 + Math.sin(elapsed * 15 + phase * 2) * 0.06;
         flame.scale.set(flicker, flicker * 1.1, flicker);
-        light.intensity = 5 * flicker;
+        if (light) light.intensity = 6 * flicker;
       });
 
       // Al llegar se abre la puerta del baño y la cámara gira hacia ella.
@@ -246,9 +336,14 @@ function setupTrophies(ctx) {
   };
 }
 
-export default function Trophies({ place, discovered, casting, onSolve, cloakRef, onCloakState }) {
+export default function Trophies({ place, discovered, casting, onSolve, cloakRef, onCloakState, onStatus, onSecret, secretFound }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupTrophies, { place, discovered, casting, onSolve, cloakRef, onCloakState }, place.id);
+  useThreeScene(
+    mountRef,
+    setupTrophies,
+    { place, discovered, casting, onSolve, cloakRef, onCloakState, onStatus, onSecret, secretFound },
+    place.id,
+  );
 
   return (
     <div

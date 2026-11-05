@@ -14,6 +14,8 @@ const CAMERA_POSITION = new THREE.Vector3(0, 1.8, 7.5);
 const CAMERA_TARGET = new THREE.Vector3(0, 2.2, 0);
 const MESSAGE_SIZE = { width: 6.6, height: 1.65 };
 const MESSAGE_CENTER = new THREE.Vector3(0, 2.6, 0.03);
+const MORE_SIZE = { width: 5.4, height: 1.2 };
+const MORE_CENTER = new THREE.Vector3(0.3, 1.05, 0.03);
 // Cuánto del mensaje hay que haber iluminado para darlo por leído.
 const READ_THRESHOLD = 0.78;
 const CRACK = new THREE.Vector3(6.2, 4.3, 0.04);
@@ -139,9 +141,21 @@ function setupCorridor(ctx) {
   });
   scene.add(window_);
 
-  const message = createMessage(place.secret ?? [place.title], MESSAGE_SIZE);
-  message.mesh.position.copy(MESSAGE_CENTER);
-  scene.add(message.mesh);
+  // Dos mensajes, uno debajo del otro: el segundo aparece cuando terminás de
+  // leer el primero (más renglones, más tiempo con la luz en la pared).
+  const phases = [
+    { lines: place.secret ?? [place.title], center: MESSAGE_CENTER, size: MESSAGE_SIZE },
+    { lines: place.secretMore, center: MORE_CENTER, size: MORE_SIZE },
+  ]
+    .filter((phase) => phase.lines?.length)
+    .map((phase) => {
+      const built = createMessage(phase.lines, phase.size);
+      built.mesh.position.copy(phase.center);
+      scene.add(built.mesh);
+      return { ...phase, message: built };
+    });
+  let active = 0;
+  let message = phases[0].message;
 
   const spiders = createSpiders();
   scene.add(spiders.mesh);
@@ -178,9 +192,17 @@ function setupCorridor(ctx) {
   let castSweep = -1;
   const TIP_ON = new THREE.Color(2.2, 2.4, 3);
 
-  if (solved) message.uniforms.uSolved.value = 1;
+  if (solved) {
+    phases.forEach((phase) => {
+      phase.message.uniforms.uSolved.value = 1;
+    });
+    active = phases.length - 1;
+    message = phases[active].message;
+  }
+  const status = place.status ?? {};
 
-  // Ilumina el punto de la pared bajo el puntero y lo marca como leído.
+  // Ilumina el punto de la pared bajo el puntero y lo marca como leído
+  // (solo en el mensaje que toca leer).
   function shine(paint) {
     const hit = pointer.cast([message.mesh, wall], false)[0];
     if (!hit) return;
@@ -190,8 +212,18 @@ function setupCorridor(ctx) {
       if (paint) message.reveal(hit.uv);
     } else {
       // Fuera del cartel: la luz sigue, pero en coordenadas del cartel.
-      lightUv.set((hit.point.x - MESSAGE_CENTER.x) / MESSAGE_SIZE.width + 0.5, (hit.point.y - MESSAGE_CENTER.y) / MESSAGE_SIZE.height + 0.5);
+      const { center, size } = phases[active];
+      lightUv.set((hit.point.x - center.x) / size.width + 0.5, (hit.point.y - center.y) / size.height + 0.5);
     }
+  }
+
+  // Terminó de revelarse un mensaje: si queda otro, la luz pasa a ese.
+  function nextPhase() {
+    active += 1;
+    message = phases[active].message;
+    coverageClock = 0;
+    playSfx("drip", { gain: 0.15 });
+    if (status.more) props.current.onStatus?.(status.more);
   }
 
   pointer.onMove(() => {
@@ -218,7 +250,7 @@ function setupCorridor(ctx) {
   function startSolve() {
     solving = 0;
     playSfx("hiss", { pitch: -7 });
-    sparks.emit(MESSAGE_CENTER, { count: 80, speed: 2, color: "#ff5a3a", lifetime: 1.2 });
+    sparks.emit(phases[active].center, { count: 80, speed: 2, color: "#ff5a3a", lifetime: 1.2 });
   }
 
   const composer = createComposer({
@@ -254,14 +286,17 @@ function setupCorridor(ctx) {
         castSweep = 0;
         lumosOn = true;
       }
+      // El barrido recorre los dos renglones del mensaje activo; al cerrar
+      // ese mensaje, sigue con el próximo (ver nextPhase).
       if (castSweep >= 0 && solved === 0 && solving < 0) {
-        castSweep += step / 1.5;
+        castSweep += step / 0.8;
         const t = Math.min(castSweep, 1);
         const row = t < 0.5 ? 0 : 1;
         const u = 0.08 + ((t % 0.5) / 0.5) * 0.84;
         lightUv.set(row === 0 ? u : 1 - u, row === 0 ? 0.7 : 0.32);
         message.reveal(lightUv, 18);
-        aimTarget.set(MESSAGE_CENTER.x + (lightUv.x - 0.5) * MESSAGE_SIZE.width, MESSAGE_CENTER.y + (lightUv.y - 0.5) * MESSAGE_SIZE.height, 0);
+        const { center, size } = phases[active];
+        aimTarget.set(center.x + (lightUv.x - 0.5) * size.width, center.y + (lightUv.y - 0.5) * size.height, 0);
         if (castSweep >= 1) startSolve();
       }
       message.flush();
@@ -280,8 +315,13 @@ function setupCorridor(ctx) {
         message.uniforms.uSolved.value = Math.min(1, solving);
         if (solving >= 1.1) {
           solving = -1;
-          solved = 1;
-          if (castSweep < 0) props.current.onSolve();
+          if (active < phases.length - 1) {
+            nextPhase();
+            if (castSweep >= 0) castSweep = 0;
+          } else {
+            solved = 1;
+            if (castSweep < 0) props.current.onSolve();
+          }
         }
       }
 
@@ -291,7 +331,9 @@ function setupCorridor(ctx) {
       tipMaterial.color.copy(TIP_ON).multiplyScalar(lumos.intensity / 60);
       message.uniforms.uLight.value.lerp(lightUv, 1 - Math.exp(-(delta || 1) * 10));
       message.uniforms.uLightOn.value = lumos.intensity / 60;
-      message.uniforms.uTime.value = elapsed;
+      phases.forEach((phase) => {
+        phase.message.uniforms.uTime.value = elapsed;
+      });
 
       // Gotas: una onda en el agua y su sonido, del lado en que cae.
       dripClock -= step;
@@ -313,16 +355,16 @@ function setupCorridor(ctx) {
   };
 }
 
-export default function Corridor({ place, discovered, casting, onSolve, spellCast }) {
+export default function Corridor({ place, discovered, casting, onSolve, spellCast, onStatus }) {
   const mountRef = useRef(null);
-  useThreeScene(mountRef, setupCorridor, { place, discovered, casting, onSolve, spellCast }, place.id);
+  useThreeScene(mountRef, setupCorridor, { place, discovered, casting, onSolve, spellCast, onStatus }, place.id);
 
   return (
     <div
       ref={mountRef}
       className="three-stage"
       role="img"
-      aria-label={`Pasillo inundado del segundo piso. En la pared hay un mensaje que solo se lee con luz: ${(place.secret ?? []).join(" ")}`}
+      aria-label={`Pasillo inundado del segundo piso. En la pared hay dos mensajes que solo se leen con luz: ${[...(place.secret ?? []), ...(place.secretMore ?? [])].join(" ")}`}
     />
   );
 }
