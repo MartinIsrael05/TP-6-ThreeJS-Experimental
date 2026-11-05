@@ -1,4 +1,5 @@
 import { Cinzel, EB_Garamond } from "next/font/google";
+import FpsMeter from "@/components/FpsMeter";
 import PlaceVeil from "@/components/PlaceVeil";
 import { siteName } from "@/data/places";
 import "./globals.css";
@@ -33,6 +34,7 @@ export default function RootLayout({ children }) {
       <body>
         {children}
         <PlaceVeil />
+        <FpsMeter />
       </body>
     </html>
   );
