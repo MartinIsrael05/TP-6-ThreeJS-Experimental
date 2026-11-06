@@ -250,6 +250,14 @@ Una experiencia ramificada puede extender el documento:
 - Finales alternativos basados en decisiones persistidas.
 - Contenido administrable desde Firestore.
 
+## Declaración de uso de IA
+
+Usamos la inteligencia artificial como una herramienta de conocimiento y como un tercer integrante del equipo. Le contábamos nuestras ideas y ella nos ayudaba a llevarlas a cabo.
+
+Algunas veces le pedíamos consejo sobre cómo podía resolverse un nivel o una mecánica. Entonces teníamos idas y vueltas: proponíamos, discutíamos las alternativas y ajustábamos hasta llegar a la mejor opción posible. La IA no reemplazó a un profesor ni a una guía: aportó ideas, conocimientos técnicos y código, y las decisiones de diseño y de dirección del proyecto las tomamos nosotros.
+
+Las reglas con las que trabajamos con los agentes están en [AGENTS.md](AGENTS.md), y el plan de trabajo con IA y la revisión de las skills usadas están en [docs/plan-ia.md](docs/plan-ia.md).
+
 ## Scripts
 
 ```bash
